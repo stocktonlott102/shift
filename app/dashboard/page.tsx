@@ -176,7 +176,7 @@ export default async function DashboardPage() {
           </h2>
           <div className="space-y-2">
             <p className="text-gray-600 dark:text-gray-400">
-              You're successfully logged in to Shift.
+              You&apos;re successfully logged in to Shift.
             </p>
             <div className="flex items-center space-x-2">
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -375,7 +375,7 @@ export default async function DashboardPage() {
                 Dashboard Under Construction
               </h4>
               <p className="text-sm text-blue-700 dark:text-blue-300">
-                You're viewing the MVP dashboard. Client management, lesson scheduling,
+                You&apos;re viewing the MVP dashboard. Client management, lesson scheduling,
                 and invoice features are coming soon according to the development roadmap.
               </p>
             </div>
