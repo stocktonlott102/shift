@@ -38,10 +38,17 @@ export default async function DashboardPage() {
   const subscriptionStatus = await checkSubscriptionStatus();
 
   // Extract subscription data
-  const isActive = subscriptionStatus.success && subscriptionStatus.subscriptionStatus === 'active';
-  const isTrial = subscriptionStatus.success && subscriptionStatus.subscriptionStatus === 'trial';
+  const currentStatus = subscriptionStatus.success ? subscriptionStatus.subscriptionStatus : 'trial';
+  const isActive = currentStatus === 'active';
+  const isTrial = currentStatus === 'trial';
+  const isCanceled = currentStatus === 'canceled';
+  const isPastDue = currentStatus === 'past_due';
+  const isIncomplete = currentStatus === 'incomplete';
   const isTrialExpired = subscriptionStatus.success && subscriptionStatus.isTrialExpired;
   const trialEndsAt = subscriptionStatus.success ? subscriptionStatus.trialEndsAt : null;
+
+  // Determine if user needs to subscribe (any status that is NOT 'active')
+  const needsSubscription = !isActive;
 
   // Calculate days remaining in trial
   let daysRemaining = 0;
@@ -50,6 +57,38 @@ export default async function DashboardPage() {
     const trialEnd = new Date(trialEndsAt);
     const diffTime = trialEnd.getTime() - now.getTime();
     daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  }
+
+  // Determine banner message and urgency based on status
+  let bannerTitle = '180-Day Free Trial Active!';
+  let bannerMessage = `You have ${daysRemaining} days remaining in your free trial.`;
+  let bannerSubtext = 'Enjoy full access to all Shift features. Subscribe before your trial ends to continue using Shift.';
+  let bannerColor = 'from-indigo-500 to-purple-600'; // Default gradient
+
+  if (isCanceled) {
+    bannerTitle = 'Subscription Canceled - Resubscribe Today!';
+    bannerMessage = 'Your subscription has been canceled. Reactivate to continue using Shift.';
+    bannerSubtext = 'Only $10/month to regain access to all coaching management features.';
+    bannerColor = 'from-orange-500 to-red-600';
+  } else if (isPastDue) {
+    bannerTitle = 'Payment Failed - Update Payment Method';
+    bannerMessage = 'Your last payment failed. Please update your payment method to continue.';
+    bannerSubtext = 'Update your payment details to maintain access to Shift.';
+    bannerColor = 'from-red-500 to-pink-600';
+  } else if (isIncomplete) {
+    bannerTitle = 'Complete Your Subscription';
+    bannerMessage = 'Your subscription setup is incomplete. Complete checkout to activate.';
+    bannerSubtext = 'Finish your subscription to unlock all Shift features.';
+    bannerColor = 'from-yellow-500 to-orange-600';
+  } else if (isTrial && isTrialExpired) {
+    bannerTitle = 'Free Trial Ended - Subscribe Today!';
+    bannerMessage = 'Your 180-day free trial has ended. Subscribe now to continue using Shift.';
+    bannerSubtext = 'Only $10/month to keep managing your coaching business efficiently.';
+    bannerColor = 'from-red-500 to-pink-600';
+  } else if (isTrial && !isTrialExpired) {
+    // Keep default trial message (already set above)
+    bannerTitle = '180-Day Free Trial Active!';
+    bannerMessage = `You have ${daysRemaining} days remaining in your free trial.`;
   }
 
   // Get Stripe Price ID from environment
@@ -74,40 +113,6 @@ export default async function DashboardPage() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Subscription Status Banner */}
-        {isTrial && !isTrialExpired && (
-          <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg shadow-xl p-6 sm:p-8 mb-8 text-white">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-              <div className="mb-6 lg:mb-0">
-                <div className="flex items-center mb-2">
-                  <svg
-                    className="w-6 h-6 mr-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <h3 className="text-2xl font-bold">180-Day Free Trial Active!</h3>
-                </div>
-                <p className="text-indigo-100 mb-2">
-                  You have <span className="font-bold text-white">{daysRemaining} days</span> remaining in your free trial.
-                </p>
-                <p className="text-sm text-indigo-100">
-                  Enjoy full access to all Shift features. Subscribe before your trial ends to continue using Shift.
-                </p>
-              </div>
-              <div className="flex-shrink-0">
-                <SubscribeButton priceId={stripePriceId} />
-              </div>
-            </div>
-          </div>
-        )}
-
         {isActive && (
           <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg shadow-md p-6 mb-8">
             <div className="flex items-center">
@@ -136,13 +141,13 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        {isTrialExpired && !isActive && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg shadow-xl p-6 sm:p-8 mb-8">
+        {needsSubscription && (
+          <div className={`bg-gradient-to-r ${bannerColor} rounded-lg shadow-xl p-6 sm:p-8 mb-8 text-white`}>
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
               <div className="mb-6 lg:mb-0">
                 <div className="flex items-center mb-2">
                   <svg
-                    className="w-6 h-6 text-red-600 dark:text-red-400 mr-2"
+                    className="w-6 h-6 mr-2"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -151,18 +156,16 @@ export default async function DashboardPage() {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                     />
                   </svg>
-                  <h3 className="text-2xl font-bold text-red-900 dark:text-red-100">
-                    Trial Expired
-                  </h3>
+                  <h3 className="text-2xl font-bold">{bannerTitle}</h3>
                 </div>
-                <p className="text-red-700 dark:text-red-300 mb-2">
-                  Your 180-day free trial has ended. Subscribe now to continue using Shift.
+                <p className="text-white/90 mb-2 font-medium">
+                  {bannerMessage}
                 </p>
-                <p className="text-sm text-red-600 dark:text-red-400">
-                  Only $10/month to keep managing your coaching business efficiently.
+                <p className="text-sm text-white/80">
+                  {bannerSubtext}
                 </p>
               </div>
               <div className="flex-shrink-0">
