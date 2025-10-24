@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import LogoutButton from '@/components/LogoutButton';
 import SubscribeButton from '@/components/SubscribeButton';
+import DashboardWrapper from '@/components/DashboardWrapper';
 import { checkSubscriptionStatus } from '@/app/actions/stripe-actions';
 
 /**
@@ -12,6 +13,7 @@ import { checkSubscriptionStatus } from '@/app/actions/stripe-actions';
  * - Redirects unauthenticated users to /login
  * - All data fetching happens on the server
  * - Fetches subscription status to display trial banner or active status
+ * - Wrapped with DashboardWrapper to handle session refresh after Stripe redirects
  *
  * Per PRD Technical Architecture:
  * "All sensitive data handling, database reads/writes, and authentication
@@ -53,9 +55,10 @@ export default async function DashboardPage() {
   // Get Stripe Price ID from environment
   const stripePriceId = process.env.STRIPE_PRICE_ID || '';
 
-  // User is authenticated, render the dashboard
+  // User is authenticated, render the dashboard wrapped with session refresh handler
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+    <DashboardWrapper>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       {/* Header */}
       <header className="bg-white dark:bg-gray-800 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -383,5 +386,6 @@ export default async function DashboardPage() {
         </div>
       </main>
     </div>
+    </DashboardWrapper>
   );
 }
