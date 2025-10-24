@@ -63,6 +63,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
  */
 export async function createCheckoutSession(priceId: string) {
   try {
+    console.log('[createCheckoutSession] Starting checkout session creation');
+    console.log('[createCheckoutSession] Price ID:', priceId);
+
     // Verify user is authenticated
     const supabase = await createClient();
     const {
@@ -71,16 +74,26 @@ export async function createCheckoutSession(priceId: string) {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
+      console.error('[createCheckoutSession] Authentication error:', authError);
       return {
         success: false,
         error: 'You must be logged in to subscribe.',
       };
     }
 
+    console.log('[createCheckoutSession] User authenticated:', user.id);
+
     // Validate required environment variables
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    // Use runtime environment variable that works on Vercel
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : 'http://localhost:3000';
+
+    console.log('[createCheckoutSession] App URL:', appUrl);
+
     if (!appUrl) {
-      console.error('Missing NEXT_PUBLIC_APP_URL environment variable');
+      console.error('[createCheckoutSession] Missing NEXT_PUBLIC_APP_URL environment variable');
+      console.error('[createCheckoutSession] Available env vars:', Object.keys(process.env));
       return {
         success: false,
         error: 'Server configuration error. Please contact support.',
@@ -96,6 +109,7 @@ export async function createCheckoutSession(priceId: string) {
     }
 
     // Check if user already has a Stripe customer ID
+    console.log('[createCheckoutSession] Fetching user profile...');
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('stripe_customer_id, subscription_status')
@@ -103,12 +117,18 @@ export async function createCheckoutSession(priceId: string) {
       .single();
 
     if (profileError) {
-      console.error('Error fetching user profile:', profileError);
+      console.error('[createCheckoutSession] Error fetching user profile:', profileError);
+      console.error('[createCheckoutSession] Profile error details:', JSON.stringify(profileError));
       return {
         success: false,
         error: 'Unable to fetch user profile.',
       };
     }
+
+    console.log('[createCheckoutSession] Profile fetched:', {
+      hasCustomerId: !!profile?.stripe_customer_id,
+      status: profile?.subscription_status
+    });
 
     // Prevent active subscribers from creating new checkout sessions
     if (profile?.subscription_status === 'active') {
@@ -119,6 +139,7 @@ export async function createCheckoutSession(priceId: string) {
     }
 
     // Create Stripe Checkout Session
+    console.log('[createCheckoutSession] Creating Stripe session...');
     const session = await stripe.checkout.sessions.create({
       customer: profile?.stripe_customer_id || undefined, // Reuse existing customer if available
       customer_email: profile?.stripe_customer_id ? undefined : user.email, // Only set email if new customer
@@ -145,6 +166,9 @@ export async function createCheckoutSession(priceId: string) {
       },
     });
 
+    console.log('[createCheckoutSession] Stripe session created:', session.id);
+    console.log('[createCheckoutSession] Session URL:', session.url);
+
     // Return the session URL to redirect the user
     return {
       success: true,
@@ -152,10 +176,14 @@ export async function createCheckoutSession(priceId: string) {
       sessionId: session.id,
     };
   } catch (error: any) {
-    console.error('Error creating Stripe checkout session:', error);
+    console.error('[createCheckoutSession] ERROR - Full error object:', error);
+    console.error('[createCheckoutSession] ERROR - Error message:', error.message);
+    console.error('[createCheckoutSession] ERROR - Error type:', error.type);
+    console.error('[createCheckoutSession] ERROR - Error stack:', error.stack);
 
     // Handle specific Stripe errors
     if (error.type === 'StripeInvalidRequestError') {
+      console.error('[createCheckoutSession] Stripe invalid request error');
       return {
         success: false,
         error: 'Invalid request to Stripe. Please check your configuration.',
@@ -164,7 +192,7 @@ export async function createCheckoutSession(priceId: string) {
 
     return {
       success: false,
-      error: 'Failed to create checkout session. Please try again.',
+      error: `Failed to create checkout session: ${error.message || 'Please try again.'}`,
     };
   }
 }
