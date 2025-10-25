@@ -62,13 +62,13 @@ export default function DashboardWrapper({ children }: DashboardWrapperProps) {
           console.log('[DashboardWrapper] Subscription successful!');
           setMessage({
             type: 'success',
-            text: 'Subscription confirmed! Your payment was successful. Welcome to Shift!',
+            text: 'Subscription confirmed! Welcome to Shift.',
           });
         } else if (status === 'cancel') {
           console.log('[DashboardWrapper] Checkout canceled');
           setMessage({
             type: 'error',
-            text: 'Checkout canceled. No charges were made. You can subscribe anytime.',
+            text: 'Checkout canceled. Your trial remains active.',
           });
         }
 
