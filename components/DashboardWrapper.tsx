@@ -31,6 +31,30 @@ export default function DashboardWrapper({ children }: DashboardWrapperProps) {
   }>({ type: null, text: '' });
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Always refresh session on dashboard mount (handles browser back button from Stripe)
+  useEffect(() => {
+    const ensureSession = async () => {
+      try {
+        const supabase = createClient();
+        console.log('[DashboardWrapper] Ensuring session is valid...');
+
+        const { data: { session }, error } = await supabase.auth.getSession();
+
+        if (error || !session) {
+          console.log('[DashboardWrapper] No valid session, attempting refresh...');
+          await supabase.auth.refreshSession();
+        } else {
+          console.log('[DashboardWrapper] Session is valid');
+        }
+      } catch (error) {
+        console.error('[DashboardWrapper] Error ensuring session:', error);
+      }
+    };
+
+    ensureSession();
+  }, []); // Run once on mount
+
+  // Handle Stripe redirect with status parameter
   useEffect(() => {
     const handleStripeRedirect = async () => {
       const status = searchParams.get('status');
@@ -45,7 +69,7 @@ export default function DashboardWrapper({ children }: DashboardWrapperProps) {
       try {
         // Refresh the Supabase session to prevent logout
         const supabase = createClient();
-        console.log('[DashboardWrapper] Refreshing session...');
+        console.log('[DashboardWrapper] Refreshing session after Stripe redirect...');
 
         const { data: { session }, error } = await supabase.auth.getSession();
 
