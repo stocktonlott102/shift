@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import LogoutButton from '@/components/LogoutButton';
 import SubscribeButton from '@/components/SubscribeButton';
 import DashboardWrapper from '@/components/DashboardWrapper';
@@ -282,7 +283,10 @@ export default async function DashboardPage() {
             Quick Actions
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <button className="flex flex-col items-center justify-center p-6 border-2 border-indigo-600 dark:border-indigo-400 rounded-lg hover:bg-indigo-50 dark:hover:bg-gray-700 transition-colors">
+            <Link
+              href="/clients/new"
+              className="flex flex-col items-center justify-center p-6 border-2 border-indigo-600 dark:border-indigo-400 rounded-lg hover:bg-indigo-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+            >
               <svg
                 className="w-10 h-10 text-indigo-600 dark:text-indigo-400 mb-2"
                 fill="none"
@@ -299,7 +303,7 @@ export default async function DashboardPage() {
               <span className="text-sm font-medium text-gray-900 dark:text-white">
                 Add Client
               </span>
-            </button>
+            </Link>
 
             <button className="flex flex-col items-center justify-center p-6 border-2 border-indigo-600 dark:border-indigo-400 rounded-lg hover:bg-indigo-50 dark:hover:bg-gray-700 transition-colors">
               <svg
