@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
 
 /**
  * Server Action: Create a new client
@@ -56,6 +57,41 @@ export async function addClient(formData: {
       };
     }
 
+    // === COOKIE VERIFICATION ===
+    console.log('[addClient] Verifying cookies are accessible...');
+    let cookieStore;
+    try {
+      cookieStore = await cookies();
+      const allCookies = cookieStore.getAll();
+      console.log('[addClient] Cookies retrieved:', {
+        cookieCount: allCookies.length,
+        hasCookies: allCookies.length > 0,
+        cookieNames: allCookies.map(c => c.name)
+      });
+
+      // Check specifically for Supabase auth cookies
+      const supabaseAuthCookies = allCookies.filter(c =>
+        c.name.includes('supabase') || c.name.includes('auth')
+      );
+      console.log('[addClient] Supabase auth cookies found:', {
+        count: supabaseAuthCookies.length,
+        names: supabaseAuthCookies.map(c => c.name)
+      });
+
+      if (supabaseAuthCookies.length === 0) {
+        console.error('[addClient] WARNING: No Supabase auth cookies found - user may not be authenticated');
+      }
+    } catch (cookieError: any) {
+      console.error('[addClient] CRITICAL: Failed to access cookies', {
+        error: cookieError.message,
+        stack: cookieError.stack
+      });
+      return {
+        success: false,
+        error: 'Failed to access session cookies. Please refresh the page and try again.',
+      };
+    }
+
     // === SUPABASE CLIENT INITIALIZATION ===
     console.log('[addClient] Initializing Supabase server client...');
 
@@ -95,7 +131,37 @@ export async function addClient(formData: {
     console.log('[addClient] Verifying user authentication...');
 
     let user;
+    let session;
     try {
+      // First, try to get the session
+      console.log('[addClient] Attempting to retrieve session...');
+      const {
+        data: { session: currentSession },
+        error: sessionError
+      } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        console.error('[addClient] Session retrieval error:', {
+          message: sessionError.message,
+          status: sessionError.status,
+          name: sessionError.name
+        });
+      }
+
+      if (currentSession) {
+        session = currentSession;
+        console.log('[addClient] Session found:', {
+          hasAccessToken: !!session.access_token,
+          hasRefreshToken: !!session.refresh_token,
+          expiresAt: session.expires_at,
+          userId: session.user?.id
+        });
+      } else {
+        console.error('[addClient] No session found in cookies');
+      }
+
+      // Then get the user
+      console.log('[addClient] Attempting to retrieve user from session...');
       const {
         data: { user: authenticatedUser },
         error: authError,
@@ -105,7 +171,8 @@ export async function addClient(formData: {
         console.error('[addClient] Authentication error:', {
           message: authError.message,
           status: authError.status,
-          name: authError.name
+          name: authError.name,
+          hasSession: !!session
         });
         return {
           success: false,
@@ -114,7 +181,10 @@ export async function addClient(formData: {
       }
 
       if (!authenticatedUser) {
-        console.error('[addClient] No authenticated user found');
+        console.error('[addClient] No authenticated user found', {
+          hasSession: !!session,
+          sessionUserId: session?.user?.id
+        });
         return {
           success: false,
           error: 'You must be logged in to create a client.',
@@ -125,13 +195,15 @@ export async function addClient(formData: {
       console.log('[addClient] User authenticated successfully:', {
         userId: user.id,
         email: user.email,
-        hasSession: true
+        hasSession: !!session,
+        sessionValid: session ? session.expires_at ? Date.now() / 1000 < session.expires_at : false : false
       });
 
     } catch (authException: any) {
       console.error('[addClient] Exception during authentication:', {
         message: authException.message,
-        stack: authException.stack
+        stack: authException.stack,
+        name: authException.name
       });
       return {
         success: false,
@@ -284,12 +356,40 @@ export async function getClients() {
     console.log('=== [getClients] SERVER ACTION STARTED ===');
     console.log('[getClients] Timestamp:', new Date().toISOString());
 
+    // Verify cookies are accessible
+    console.log('[getClients] Verifying cookies...');
+    try {
+      const cookieStore = await cookies();
+      const allCookies = cookieStore.getAll();
+      console.log('[getClients] Cookies accessible:', {
+        count: allCookies.length
+      });
+    } catch (cookieError: any) {
+      console.error('[getClients] Failed to access cookies:', cookieError.message);
+    }
+
     // Initialize Supabase client
     console.log('[getClients] Creating Supabase client...');
     const supabase = await createClient();
 
     // Verify the user is authenticated
     console.log('[getClients] Verifying authentication...');
+
+    // Get session first
+    const {
+      data: { session },
+      error: sessionError
+    } = await supabase.auth.getSession();
+
+    if (sessionError) {
+      console.error('[getClients] Session error:', sessionError.message);
+    } else {
+      console.log('[getClients] Session status:', {
+        hasSession: !!session,
+        userId: session?.user?.id
+      });
+    }
+
     const {
       data: { user },
       error: authError,
