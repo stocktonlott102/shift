@@ -122,12 +122,16 @@ export default function Calendar({
         eventPropGetter={eventStyleGetter}
         views={['month', 'week', 'day', 'agenda']}
         defaultView={defaultView}
-  // Configuration for 15-minute booking precision and hourly visual lines
-  // Use a 15-minute step so selections work at 15-minute granularity.
-  // We'll render hourly visual lines via CSS so the grid looks clean.
-  step={15}        // 15-minute step for selectable precision
-  timeslots={1}    // keep single timeslot per group; CSS will display hourly boundaries
+  // Configuration: show hourly visual lines while keeping 15-minute selection precision
+  // Use a 15-minute step with 4 timeslots: 15 * 4 = 60-minute group (hourly visual grid)
+  step={15}        // 15-minute step (selectable precision)
+  timeslots={4}    // 4 timeslots per step => 60-minute major group (hourly visual lines)
   // Scroll initial view to 5:00 AM on load (user's preferred start of day)
+  // NOTE: React Big Calendar can behave inconsistently when `max` crosses midnight.
+  // Previously adding `min`/`max` caused the visible range to collapse in some
+  // environments. To avoid that risk, we only set `scrollToTime` here. If you
+  // still want to hide hours outside 5:00 AM–1:00 AM, using CSS to hide rows is
+  // more reliable across RBC versions (see `app/globals.css`).
   scrollToTime={new Date(1970, 1, 1, 5, 0, 0)}
         showMultiDayTimes
         getNow={() => new Date()} // Enable red current time indicator
