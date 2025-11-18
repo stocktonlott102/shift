@@ -11,6 +11,9 @@
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+  }
+}
+
   /* Scheduler (headless) styles - Pure Tailwind-friendly utility overrides
      This section replaces react-big-calendar styles with a compact set
      of utility class defaults and a few small helpers used by the
@@ -105,4 +108,4 @@
     .scheduler-grid { background: #0b1015; }
     .time-label { color: #e5e7eb; }
   }
-}
+
