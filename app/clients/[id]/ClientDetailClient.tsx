@@ -4,19 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ClientForm from '@/components/ClientForm';
 import { deleteClient } from '@/app/actions/client-actions';
-
-interface Client {
-  id: string;
-  coach_id: string;
-  athlete_name: string;
-  parent_email: string;
-  parent_phone: string;
-  hourly_rate: number;
-  notes?: string | null;
-  status: string;
-  created_at: string;
-  updated_at: string;
-}
+import { Client } from '@/lib/types/client';
 
 interface ClientDetailClientProps {
   client: Client;
