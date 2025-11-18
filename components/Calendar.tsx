@@ -44,37 +44,30 @@ export default function Calendar({
   const [view, setView] = useState<View>(defaultView);
   const [date, setDate] = useState(new Date());
 
-  // Convert lessons to calendar events
+  // Convert lessons to calendar events - Display only lesson title
   const events: CalendarEvent[] = useMemo(() => {
     return lessons.map((lesson) => ({
       id: lesson.id,
-      title: lesson.title, // Display only lesson title (not client name)
+      title: lesson.title, // Clean display - lesson title only
       start: new Date(lesson.start_time),
       end: new Date(lesson.end_time),
       resource: lesson,
     }));
   }, [lessons]);
 
-  // Custom event style getter
+  // Event styling with updated color scheme
   const eventStyleGetter = useCallback((event: CalendarEvent) => {
     const lesson = event.resource;
 
-    let backgroundColor = '#4F46E5'; // Default indigo
+    // Modern, clean color palette
+    const colorMap: Record<string, string> = {
+      'Scheduled': '#3B82F6',  // Bright Blue
+      'Completed': '#14B8A6',  // Soft Teal/Mint
+      'Cancelled': '#F43F5E',  // Rose Red
+      'No Show': '#FBBF24',    // Amber/Yellow
+    };
 
-    switch (lesson.status) {
-      case 'Scheduled':
-        backgroundColor = '#4F46E5'; // Indigo
-        break;
-      case 'Completed':
-        backgroundColor = '#10B981'; // Green
-        break;
-      case 'Cancelled':
-        backgroundColor = '#EF4444'; // Red
-        break;
-      case 'No Show':
-        backgroundColor = '#F59E0B'; // Amber
-        break;
-    }
+    const backgroundColor = colorMap[lesson.status] || '#3B82F6';
 
     return {
       style: {
@@ -86,6 +79,7 @@ export default function Calendar({
         display: 'block',
         fontSize: '0.875rem',
         padding: '4px 8px',
+        fontWeight: '500',
       },
     };
   }, []);
@@ -117,7 +111,7 @@ export default function Calendar({
         events={events}
         startAccessor="start"
         endAccessor="end"
-        titleAccessor="title" // Explicitly use title field for event display
+        titleAccessor="title"
         view={view}
         onView={setView}
         date={date}
@@ -128,12 +122,18 @@ export default function Calendar({
         eventPropGetter={eventStyleGetter}
         views={['month', 'week', 'day', 'agenda']}
         defaultView={defaultView}
-        step={30} // 30-minute increments
-        timeslots={2} // 2 slots per step = 15-minute granularity
-        showMultiDayTimes // Show times on multi-day events
-        getNow={() => new Date()} // Enable current time indicator
+  // Configuration for 15-minute booking precision and hourly visual lines
+  // Use a 15-minute step so selections work at 15-minute granularity.
+  // We'll render hourly visual lines via CSS so the grid looks clean.
+  step={15}        // 15-minute step for selectable precision
+  timeslots={1}    // keep single timeslot per group; CSS will display hourly boundaries
+  // Scroll initial view to 5:00 AM on load (user's preferred start of day)
+  scrollToTime={new Date(1970, 1, 1, 5, 0, 0)}
+        showMultiDayTimes
+        getNow={() => new Date()} // Enable red current time indicator
         style={{ height: '100%' }}
         className="dark:text-gray-200"
+        // Explicit formats - force hourly-looking gutter labels
         formats={{
           timeGutterFormat: 'h:mm a',
           eventTimeRangeFormat: ({ start, end }, culture, localizer) =>
@@ -143,22 +143,22 @@ export default function Calendar({
         }}
       />
 
-      {/* Legend */}
+      {/* Legend - Updated with new color scheme */}
       <div className="mt-4 flex flex-wrap gap-4 text-sm">
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-indigo-600"></div>
+          <div className="w-4 h-4 rounded bg-blue-500"></div>
           <span className="text-gray-700 dark:text-gray-300">Scheduled</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-green-600"></div>
+          <div className="w-4 h-4 rounded bg-teal-500"></div>
           <span className="text-gray-700 dark:text-gray-300">Completed</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-red-600"></div>
+          <div className="w-4 h-4 rounded bg-rose-500"></div>
           <span className="text-gray-700 dark:text-gray-300">Cancelled</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-amber-600"></div>
+          <div className="w-4 h-4 rounded bg-amber-400"></div>
           <span className="text-gray-700 dark:text-gray-300">No Show</span>
         </div>
       </div>
