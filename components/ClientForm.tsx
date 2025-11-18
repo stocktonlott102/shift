@@ -3,7 +3,8 @@
 import { useState, FormEvent, useEffect } from 'react';
 import { addClient, updateClient } from '@/app/actions/client-actions';
 import { Client } from '@/lib/types/client';
-import { ERROR_MESSAGES, SUCCESS_MESSAGES, VALIDATION_PATTERNS } from '@/lib/constants/messages';
+import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/lib/constants/messages';
+import { validateClientData } from '@/lib/validation/client-validation';
 
 interface ClientFormProps {
   coachId: string;
@@ -41,41 +42,17 @@ export default function ClientForm({ coachId, client, onSuccess, onCancel }: Cli
     setSuccessMessage(null);
     setIsLoading(true);
 
-    // Validation
-    if (!athleteName.trim()) {
-      setError(ERROR_MESSAGES.CLIENT.NAME_REQUIRED);
-      setIsLoading(false);
-      return;
-    }
+    // Client-side validation using shared validator
+    const hourly = parseFloat(hourlyRate || '0');
+    const validationErrors = validateClientData({
+      athlete_name: athleteName.trim(),
+      parent_email: parentEmail.trim().toLowerCase(),
+      parent_phone: parentPhone.trim(),
+      hourly_rate: hourly,
+    });
 
-    if (!parentEmail.trim()) {
-      setError(ERROR_MESSAGES.CLIENT.EMAIL_REQUIRED);
-      setIsLoading(false);
-      return;
-    }
-
-    // Email validation
-    if (!VALIDATION_PATTERNS.EMAIL.test(parentEmail)) {
-      setError(ERROR_MESSAGES.CLIENT.INVALID_EMAIL);
-      setIsLoading(false);
-      return;
-    }
-
-    if (!parentPhone.trim()) {
-      setError(ERROR_MESSAGES.CLIENT.PHONE_REQUIRED);
-      setIsLoading(false);
-      return;
-    }
-
-    // Phone validation
-    if (!VALIDATION_PATTERNS.PHONE.test(parentPhone)) {
-      setError(ERROR_MESSAGES.CLIENT.INVALID_PHONE);
-      setIsLoading(false);
-      return;
-    }
-
-    if (!hourlyRate || parseFloat(hourlyRate) <= 0) {
-      setError(ERROR_MESSAGES.CLIENT.INVALID_RATE);
+    if (validationErrors.length > 0) {
+      setError(validationErrors[0].message);
       setIsLoading(false);
       return;
     }

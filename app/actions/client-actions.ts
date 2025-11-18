@@ -2,6 +2,8 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { validateClientData } from '@/lib/validation/client-validation';
+import { ERROR_MESSAGES } from '@/lib/constants/messages';
 
 /**
  * Server Action: Create a new client
@@ -43,18 +45,18 @@ export async function addClient(formData: {
       };
     }
 
-    // Validate required fields
-    if (!formData.athlete_name || !formData.parent_email || !formData.parent_phone) {
-      return {
-        success: false,
-        error: 'All fields are required.',
-      };
-    }
+    // Server-side validation using shared validator
+    const validationErrors = validateClientData({
+      athlete_name: formData.athlete_name,
+      parent_email: formData.parent_email,
+      parent_phone: formData.parent_phone,
+      hourly_rate: formData.hourly_rate,
+    });
 
-    if (formData.hourly_rate <= 0) {
+    if (validationErrors.length > 0) {
       return {
         success: false,
-        error: 'Hourly rate must be greater than 0.',
+        error: validationErrors[0].message || ERROR_MESSAGES.CLIENT.CREATE_FAILED,
       };
     }
 
@@ -233,18 +235,18 @@ export async function updateClient(
       };
     }
 
-    // Validate required fields
-    if (!formData.athlete_name || !formData.parent_email || !formData.parent_phone) {
-      return {
-        success: false,
-        error: 'All fields are required.',
-      };
-    }
+    // Server-side validation using shared validator
+    const validationErrors = validateClientData({
+      athlete_name: formData.athlete_name,
+      parent_email: formData.parent_email,
+      parent_phone: formData.parent_phone,
+      hourly_rate: formData.hourly_rate,
+    });
 
-    if (formData.hourly_rate <= 0) {
+    if (validationErrors.length > 0) {
       return {
         success: false,
-        error: 'Hourly rate must be greater than 0.',
+        error: validationErrors[0].message || ERROR_MESSAGES.CLIENT.UPDATE_FAILED,
       };
     }
 
