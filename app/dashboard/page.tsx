@@ -228,7 +228,10 @@ export default async function DashboardPage() {
           </Link>
 
           {/* Upcoming Lessons Card */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+          <Link
+            href="/calendar"
+            className="block bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-all duration-200 transform hover:scale-105 cursor-pointer"
+          >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                 Today&apos;s Lessons
@@ -251,7 +254,7 @@ export default async function DashboardPage() {
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Scheduled lessons
             </p>
-          </div>
+          </Link>
 
           {/* Outstanding Payments Card */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
@@ -308,7 +311,10 @@ export default async function DashboardPage() {
               </span>
             </Link>
 
-            <button className="flex flex-col items-center justify-center p-6 border-2 border-indigo-600 dark:border-indigo-400 rounded-lg hover:bg-indigo-50 dark:hover:bg-gray-700 transition-colors">
+            <Link
+              href="/calendar"
+              className="flex flex-col items-center justify-center p-6 border-2 border-indigo-600 dark:border-indigo-400 rounded-lg hover:bg-indigo-50 dark:hover:bg-gray-700 transition-colors"
+            >
               <svg
                 className="w-10 h-10 text-indigo-600 dark:text-indigo-400 mb-2"
                 fill="none"
@@ -325,7 +331,7 @@ export default async function DashboardPage() {
               <span className="text-sm font-medium text-gray-900 dark:text-white">
                 Schedule Lesson
               </span>
-            </button>
+            </Link>
 
             <button className="flex flex-col items-center justify-center p-6 border-2 border-indigo-600 dark:border-indigo-400 rounded-lg hover:bg-indigo-50 dark:hover:bg-gray-700 transition-colors">
               <svg
@@ -346,7 +352,10 @@ export default async function DashboardPage() {
               </span>
             </button>
 
-            <button className="flex flex-col items-center justify-center p-6 border-2 border-indigo-600 dark:border-indigo-400 rounded-lg hover:bg-indigo-50 dark:hover:bg-gray-700 transition-colors">
+            <Link
+              href="/calendar"
+              className="flex flex-col items-center justify-center p-6 border-2 border-indigo-600 dark:border-indigo-400 rounded-lg hover:bg-indigo-50 dark:hover:bg-gray-700 transition-colors"
+            >
               <svg
                 className="w-10 h-10 text-indigo-600 dark:text-indigo-400 mb-2"
                 fill="none"
@@ -363,7 +372,7 @@ export default async function DashboardPage() {
               <span className="text-sm font-medium text-gray-900 dark:text-white">
                 View Calendar
               </span>
-            </button>
+            </Link>
           </div>
         </div>
 
