@@ -57,6 +57,8 @@ export default function LoginPage() {
         setError('Invalid email or password. Please try again.');
       } else if (err.message === 'Email not confirmed') {
         setError('Please confirm your email address before logging in.');
+      } else if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
+        setError('Cannot connect to authentication service. Please check your internet connection and try again.');
       } else {
         setError(err.message || 'An error occurred during login. Please try again.');
       }

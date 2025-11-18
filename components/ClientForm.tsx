@@ -1,22 +1,46 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
-import { addClient } from '@/app/actions/client-actions';
+import { useState, FormEvent, useEffect } from 'react';
+import { addClient, updateClient } from '@/app/actions/client-actions';
+
+interface Client {
+  id: string;
+  athlete_name: string;
+  parent_email: string;
+  parent_phone: string;
+  hourly_rate: number;
+  notes?: string | null;
+}
 
 interface ClientFormProps {
   coachId: string;
+  client?: Client; // Optional: for edit mode
   onSuccess?: () => void;
   onCancel?: () => void;
 }
 
-export default function ClientForm({ coachId, onSuccess, onCancel }: ClientFormProps) {
+export default function ClientForm({ coachId, client, onSuccess, onCancel }: ClientFormProps) {
+  const isEditMode = !!client;
+
   const [athleteName, setAthleteName] = useState('');
   const [parentEmail, setParentEmail] = useState('');
   const [parentPhone, setParentPhone] = useState('');
   const [hourlyRate, setHourlyRate] = useState('');
+  const [notes, setNotes] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Pre-populate form in edit mode
+  useEffect(() => {
+    if (client) {
+      setAthleteName(client.athlete_name);
+      setParentEmail(client.parent_email);
+      setParentPhone(client.parent_phone);
+      setHourlyRate(client.hourly_rate.toString());
+      setNotes(client.notes || '');
+    }
+  }, [client]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -66,29 +90,46 @@ export default function ClientForm({ coachId, onSuccess, onCancel }: ClientFormP
     }
 
     try {
-      // Call server action to create client
-      const result = await addClient({
-        coach_id: coachId,
-        athlete_name: athleteName.trim(),
-        parent_email: parentEmail.trim().toLowerCase(),
-        parent_phone: parentPhone.trim(),
-        hourly_rate: parseFloat(hourlyRate),
-      });
+      let result;
+
+      if (isEditMode && client) {
+        // Update existing client
+        result = await updateClient(client.id, {
+          athlete_name: athleteName.trim(),
+          parent_email: parentEmail.trim().toLowerCase(),
+          parent_phone: parentPhone.trim(),
+          hourly_rate: parseFloat(hourlyRate),
+          notes: notes.trim() || undefined,
+        });
+      } else {
+        // Create new client
+        result = await addClient({
+          coach_id: coachId,
+          athlete_name: athleteName.trim(),
+          parent_email: parentEmail.trim().toLowerCase(),
+          parent_phone: parentPhone.trim(),
+          hourly_rate: parseFloat(hourlyRate),
+          notes: notes.trim() || undefined,
+        });
+      }
 
       if (!result.success) {
-        setError(result.error || 'Failed to create client.');
+        setError(result.error || `Failed to ${isEditMode ? 'update' : 'create'} client.`);
         setIsLoading(false);
         return;
       }
 
       // Success!
-      setSuccessMessage('Client added successfully!');
+      setSuccessMessage(`Client ${isEditMode ? 'updated' : 'added'} successfully!`);
 
-      // Reset form
-      setAthleteName('');
-      setParentEmail('');
-      setParentPhone('');
-      setHourlyRate('');
+      if (!isEditMode) {
+        // Reset form only in create mode
+        setAthleteName('');
+        setParentEmail('');
+        setParentPhone('');
+        setHourlyRate('');
+        setNotes('');
+      }
 
       // Call success callback after a brief delay
       setTimeout(() => {
@@ -98,7 +139,7 @@ export default function ClientForm({ coachId, onSuccess, onCancel }: ClientFormP
       }, 1500);
 
     } catch (err: any) {
-      console.error('Error creating client:', err);
+      console.error(`Error ${isEditMode ? 'updating' : 'creating'} client:`, err);
       setError('An unexpected error occurred. Please try again.');
       setIsLoading(false);
     }
@@ -107,7 +148,7 @@ export default function ClientForm({ coachId, onSuccess, onCancel }: ClientFormP
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 md:p-8">
       <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-        Add New Client
+        {isEditMode ? 'Edit Client' : 'Add New Client'}
       </h2>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -225,6 +266,29 @@ export default function ClientForm({ coachId, onSuccess, onCancel }: ClientFormP
           </p>
         </div>
 
+        {/* Notes Field */}
+        <div>
+          <label
+            htmlFor="notes"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+          >
+            Coach Notes
+          </label>
+          <textarea
+            id="notes"
+            name="notes"
+            rows={4}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors resize-none"
+            placeholder="Private notes about this athlete (goals, skill level, parent preferences, etc.)"
+            disabled={isLoading}
+          />
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            These notes are private and only visible to you
+          </p>
+        </div>
+
         {/* Form Actions */}
         <div className="flex flex-col sm:flex-row gap-3 pt-4">
           {/* Submit Button */}
@@ -255,10 +319,10 @@ export default function ClientForm({ coachId, onSuccess, onCancel }: ClientFormP
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   ></path>
                 </svg>
-                Adding Client...
+                {isEditMode ? 'Updating Client...' : 'Adding Client...'}
               </span>
             ) : (
-              'Add Client'
+              isEditMode ? 'Update Client' : 'Add Client'
             )}
           </button>
 

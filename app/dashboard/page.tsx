@@ -199,7 +199,10 @@ export default async function DashboardPage() {
         {/* Dashboard Overview Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {/* Clients Card */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+          <Link
+            href="/clients"
+            className="block bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-all duration-200 transform hover:scale-105 cursor-pointer"
+          >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                 Clients
@@ -222,7 +225,7 @@ export default async function DashboardPage() {
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Active clients
             </p>
-          </div>
+          </Link>
 
           {/* Upcoming Lessons Card */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
