@@ -16,13 +16,7 @@ import ClientDetailClient from './ClientDetailClient';
  * Route: /clients/[id]
  */
 
-interface ClientDetailPageProps {
-  params: {
-    id: string;
-  };
-}
-
-export default async function ClientDetailPage({ params }: ClientDetailPageProps) {
+export default async function ClientDetailPage({ params }: { params: { id: string } }) {
   const supabase = await createClient();
 
   // Check if user is authenticated
