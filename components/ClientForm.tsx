@@ -2,15 +2,8 @@
 
 import { useState, FormEvent, useEffect } from 'react';
 import { addClient, updateClient } from '@/app/actions/client-actions';
-
-interface Client {
-  id: string;
-  athlete_name: string;
-  parent_email: string;
-  parent_phone: string;
-  hourly_rate: number;
-  notes?: string | null;
-}
+import { Client } from '@/lib/types/client';
+import { ERROR_MESSAGES, SUCCESS_MESSAGES, VALIDATION_PATTERNS } from '@/lib/constants/messages';
 
 interface ClientFormProps {
   coachId: string;
@@ -50,41 +43,39 @@ export default function ClientForm({ coachId, client, onSuccess, onCancel }: Cli
 
     // Validation
     if (!athleteName.trim()) {
-      setError('Athlete name is required.');
+      setError(ERROR_MESSAGES.CLIENT.NAME_REQUIRED);
       setIsLoading(false);
       return;
     }
 
     if (!parentEmail.trim()) {
-      setError('Parent email is required.');
+      setError(ERROR_MESSAGES.CLIENT.EMAIL_REQUIRED);
       setIsLoading(false);
       return;
     }
 
     // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(parentEmail)) {
-      setError('Please enter a valid email address.');
+    if (!VALIDATION_PATTERNS.EMAIL.test(parentEmail)) {
+      setError(ERROR_MESSAGES.CLIENT.INVALID_EMAIL);
       setIsLoading(false);
       return;
     }
 
     if (!parentPhone.trim()) {
-      setError('Parent phone is required.');
+      setError(ERROR_MESSAGES.CLIENT.PHONE_REQUIRED);
       setIsLoading(false);
       return;
     }
 
-    // Phone validation (basic)
-    const phoneRegex = /^[\d\s\-\(\)\+]+$/;
-    if (!phoneRegex.test(parentPhone)) {
-      setError('Please enter a valid phone number.');
+    // Phone validation
+    if (!VALIDATION_PATTERNS.PHONE.test(parentPhone)) {
+      setError(ERROR_MESSAGES.CLIENT.INVALID_PHONE);
       setIsLoading(false);
       return;
     }
 
     if (!hourlyRate || parseFloat(hourlyRate) <= 0) {
-      setError('Hourly rate must be greater than 0.');
+      setError(ERROR_MESSAGES.CLIENT.INVALID_RATE);
       setIsLoading(false);
       return;
     }
@@ -120,7 +111,7 @@ export default function ClientForm({ coachId, client, onSuccess, onCancel }: Cli
       }
 
       // Success!
-      setSuccessMessage(`Client ${isEditMode ? 'updated' : 'added'} successfully!`);
+      setSuccessMessage(isEditMode ? SUCCESS_MESSAGES.CLIENT.UPDATED : SUCCESS_MESSAGES.CLIENT.CREATED);
 
       if (!isEditMode) {
         // Reset form only in create mode
