@@ -14,164 +14,98 @@
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-}
+  /* Scheduler (headless) styles - Pure Tailwind-friendly utility overrides
+     This section replaces react-big-calendar styles with a compact set
+     of utility class defaults and a few small helpers used by the
+     custom `components/Calendar.tsx` headless scheduler.
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-}
+     Design notes:
+     - Each hour row is 64px tall by default (customizable via CSS variables).
+     - 15-minute steps are 25% of an hour's height and used for absolute positioning.
+     - The current time indicator is a 2px red line positioned absolutely.
+  */
 
-/* React Big Calendar Styles - Clean, Modern Design */
-
-/* Base Calendar Styles */
-.rbc-calendar {
-  font-family: inherit;
-}
-
-/* Hide overnight hours (2 AM - 5 AM) by hiding specific time slots */
-.rbc-time-slot[data-time="02:00"],
-.rbc-time-slot[data-time="03:00"],
-.rbc-time-slot[data-time="04:00"],
-.rbc-timeslot-group:has(.rbc-label:is([aria-label*="2:00 AM"], [aria-label*="3:00 AM"], [aria-label*="4:00 AM"])) {
-  display: none !important;
-}
-
-/* Ensure hourly gutter labels and hide internal sub-slot borders
-   - We keep 15-minute selectable precision but visually show hourly lines only */
-.rbc-timeslot-group .rbc-time-slot:not(:first-child) {
-  border-top: none !important;
-}
-
-.rbc-timeslot-group {
-  border-top: 1px solid #e5e7eb !important; /* Light gray hourly lines */
-}
-
-/* Current Day Highlight */
-.rbc-today {
-  background-color: rgba(79, 70, 229, 0.08) !important; /* Subtle indigo tint */
-}
-
-/* Current Time Indicator (Red Line) */
-.rbc-current-time-indicator {
-  background-color: #ef4444 !important; /* Red line */
-  height: 2px !important;
-  z-index: 10;
-}
-
-/* Hide 15-minute interval lines - Show only hourly lines */
-.rbc-time-slot {
-  border-top: none !important;
-}
-
-/* Hourly boundary lines */
-.rbc-timeslot-group {
-  border-top: 1px solid #e5e7eb !important; /* Light gray hourly lines */
-  min-height: 60px;
-}
-
-/* Dark Mode Styles */
-@media (prefers-color-scheme: dark) {
-  .rbc-calendar {
-    color: #e5e7eb;
+  :root {
+    --scheduler-hour-height: 64px;
+    --scheduler-hour-border: 1px solid #e5e7eb;
   }
 
-  /* Header styling */
-  .rbc-header {
-    background-color: #374151;
-    border-color: #4b5563;
-    color: #f3f4f6;
-    font-weight: 500;
+  .scheduler {
+    font-family: inherit;
   }
 
-  /* Current day in dark mode */
-  .rbc-today {
-    background-color: rgba(59, 130, 246, 0.12) !important; /* Subtle blue highlight */
+  .scheduler-grid {
+    position: relative;
+    width: 100%;
+    background: var(--background);
+    border-radius: 0.5rem;
   }
 
-  /* Off-range background (days outside current month) */
-  .rbc-off-range-bg {
-    background-color: #1f2937;
+  .scheduler-row {
+    position: relative;
+    height: var(--scheduler-hour-height);
+    border-top: var(--scheduler-hour-border);
   }
 
-  /* Grid lines - softer in dark mode */
-  .rbc-day-bg,
-  .rbc-month-row {
-    border-color: #374151;
+  .time-gutter {
+    position: sticky;
+    left: 0;
+    z-index: 20;
+    background: transparent;
   }
 
-  /* Hourly lines in dark mode */
-  .rbc-timeslot-group {
-    border-top: 1px solid #4b5563 !important; /* Soft gray hourly lines */
-  }
-
-  /* Hide internal slot borders */
-  .rbc-day-slot .rbc-time-slot {
-    border-color: transparent !important;
-  }
-
-  /* Ensure hourly lines are visible */
-  .rbc-day-slot .rbc-timeslot-group {
-    border-top: 1px solid #4b5563 !important;
-  }
-
-  /* Time content borders */
-  .rbc-time-content {
-    border-color: #4b5563;
-  }
-
-  .rbc-time-header-content {
-    border-color: #4b5563;
-  }
-
-  /* All-day cell */
-  .rbc-allday-cell {
-    background-color: #374151;
-  }
-
-  /* Time header */
-  .rbc-time-header {
-    background-color: #1f2937;
-  }
-
-  /* Time labels */
-  .rbc-label {
-    color: #9ca3af;
+  .time-label {
+    height: var(--scheduler-hour-height);
+    display: flex;
+    align-items: start;
+    padding-top: 6px;
+    padding-left: 8px;
+    color: var(--foreground);
     font-size: 0.875rem;
   }
 
-  /* Agenda view */
-  .rbc-agenda-view {
-    background-color: #1f2937;
+  .scheduler-cell {
+    position: relative;
+    height: var(--scheduler-hour-height);
   }
 
-  .rbc-agenda-table {
-    border-color: #4b5563;
+  .slot-overlay {
+    position: absolute;
+    inset: 0;
   }
 
-  .rbc-agenda-date-cell,
-  .rbc-agenda-time-cell {
-    border-color: #4b5563;
-  }
-
-  /* Toolbar buttons */
-  .rbc-toolbar button {
-    color: #e5e7eb;
-    border-color: #4b5563;
-    transition: all 0.2s;
-  }
-
-  .rbc-toolbar button:hover {
-    background-color: #374151;
-  }
-
-  .rbc-toolbar button.rbc-active {
-    background-color: #3b82f6; /* Blue-500 to match color scheme */
+  .scheduler-event {
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    border-radius: 0.375rem;
     color: white;
-    border-color: #3b82f6;
+    padding: 6px 8px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    box-shadow: 0 4px 10px rgba(2,6,23,0.08);
+    z-index: 30;
   }
-}
+
+  .scheduler-event.scheduled { background: #3B82F6; }
+  .scheduler-event.completed { background: #14B8A6; }
+  .scheduler-event.cancelled { background: #F43F5E; }
+  .scheduler-event.noshow { background: #FBBF24; color: #0f172a; }
+
+  .current-time-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: #ef4444;
+    z-index: 40;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --scheduler-hour-border: 1px solid #374151;
+    }
+    .scheduler-grid { background: #0b1015; }
+    .time-label { color: #e5e7eb; }
+  }
+

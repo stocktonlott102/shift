@@ -141,8 +141,11 @@ Once the migration is successful:
 
 1. ✅ Install React Big Calendar package:
    ```bash
-   npm install react-big-calendar date-fns
-   npm install -D @types/react-big-calendar
+  # The project now uses a custom headless Tailwind scheduler UI.
+  # No extra calendar UI dependency is required. If you previously
+  # followed older instructions that installed `react-big-calendar`,
+  # you may remove it from your project with:
+  # npm uninstall react-big-calendar @types/react-big-calendar
    ```
 
 2. ✅ Test the lesson server actions in your app

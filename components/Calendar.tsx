@@ -1,167 +1,162 @@
-'use client';
+"use client";
 
-import { Calendar as BigCalendar, dateFnsLocalizer, View } from 'react-big-calendar';
-import { format, parse, startOfWeek, getDay } from 'date-fns';
-import { enUS } from 'date-fns/locale';
-import { useState, useMemo, useCallback } from 'react';
-import 'react-big-calendar/lib/css/react-big-calendar.css';
+import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react';
 import type { LessonWithClient } from '@/lib/types/lesson';
-
-// Configure date-fns localizer for React Big Calendar
-const locales = {
-  'en-US': enUS,
-};
-
-const localizer = dateFnsLocalizer({
-  format,
-  parse,
-  startOfWeek,
-  getDay,
-  locales,
-});
 
 interface CalendarProps {
   lessons: LessonWithClient[];
   onSelectSlot?: (slotInfo: { start: Date; end: Date }) => void;
-  onSelectEvent?: (event: CalendarEvent) => void;
-  defaultView?: View;
+  onSelectEvent?: (event: { id: string; resource: LessonWithClient }) => void;
+  date?: Date;
 }
 
-interface CalendarEvent {
+// Configuration
+const VISIBLE_START_HOUR = 5; // 5:00 AM
+const VISIBLE_END_HOUR_NEXT_DAY = 2; // 2:00 AM next day
+const HOUR_HEIGHT_PX = 64; // pixels per hour (matches CSS var)
+const MINUTES_PER_SLOT = 15;
+
+function buildVisibleRange(date: Date) {
+  const start = new Date(date);
+  start.setHours(VISIBLE_START_HOUR, 0, 0, 0);
+
+  const end = new Date(start);
+  const hoursUntilMidnight = 24 - VISIBLE_START_HOUR;
+  const totalHours = hoursUntilMidnight + VISIBLE_END_HOUR_NEXT_DAY;
+  end.setHours(start.getHours() + totalHours, 0, 0, 0);
+
+  return { start, end };
+}
+
+function minutesBetween(a: Date, b: Date) {
+  return (b.getTime() - a.getTime()) / 60000;
+}
+
+type EventBox = {
   id: string;
   title: string;
   start: Date;
   end: Date;
+  top: number;
+  height: number;
+  status: string;
   resource: LessonWithClient;
-}
+};
 
-export default function Calendar({
-  lessons,
-  onSelectSlot,
-  onSelectEvent,
-  defaultView = 'week',
-}: CalendarProps) {
-  const [view, setView] = useState<View>(defaultView);
-  const [date, setDate] = useState(new Date());
+export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = new Date() }: CalendarProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [now, setNow] = useState(new Date());
 
-  // Convert lessons to calendar events - Display only lesson title
-  const events: CalendarEvent[] = useMemo(() => {
-    return lessons.map((lesson) => ({
-      id: lesson.id,
-      title: lesson.title, // Clean display - lesson title only
-      start: new Date(lesson.start_time),
-      end: new Date(lesson.end_time),
-      resource: lesson,
-    }));
-  }, [lessons]);
+  const { start: visibleStart, end: visibleEnd } = useMemo(() => buildVisibleRange(date), [date]);
 
-  // Event styling with updated color scheme
-  const eventStyleGetter = useCallback((event: CalendarEvent) => {
-    const lesson = event.resource;
-
-    // Modern, clean color palette
-    const colorMap: Record<string, string> = {
-      'Scheduled': '#3B82F6',  // Bright Blue
-      'Completed': '#14B8A6',  // Soft Teal/Mint
-      'Cancelled': '#F43F5E',  // Rose Red
-      'No Show': '#FBBF24',    // Amber/Yellow
-    };
-
-    const backgroundColor = colorMap[lesson.status] || '#3B82F6';
-
-    return {
-      style: {
-        backgroundColor,
-        borderRadius: '6px',
-        opacity: 0.9,
-        color: 'white',
-        border: '0px',
-        display: 'block',
-        fontSize: '0.875rem',
-        padding: '4px 8px',
-        fontWeight: '500',
-      },
-    };
+  const hours = useMemo(() => {
+    const arr: number[] = [];
+    for (let h = VISIBLE_START_HOUR; h < 24; h++) arr.push(h);
+    for (let h = 0; h <= VISIBLE_END_HOUR_NEXT_DAY; h++) arr.push(h);
+    return arr;
   }, []);
 
-  // Handle slot selection (clicking empty time slot)
-  const handleSelectSlot = useCallback(
-    (slotInfo: { start: Date; end: Date; action: string }) => {
-      if (onSelectSlot && slotInfo.action === 'click') {
-        onSelectSlot(slotInfo);
-      }
+  const totalVisibleMinutes = useMemo(() => minutesBetween(visibleStart, visibleEnd), [visibleStart, visibleEnd]);
+
+  const events: EventBox[] = useMemo(() => {
+    return lessons
+      .map((l) => {
+        const s = new Date(l.start_time);
+        const e = new Date(l.end_time);
+
+        // If event is completely outside visible range, skip
+        if (e <= visibleStart || s >= visibleEnd) return null;
+
+        const clippedStart = s < visibleStart ? visibleStart : s;
+        const clippedEnd = e > visibleEnd ? visibleEnd : e;
+
+        const minutesFromStart = minutesBetween(visibleStart, clippedStart);
+        const durationMinutes = Math.max(1, minutesBetween(clippedStart, clippedEnd));
+
+        const top = (minutesFromStart / 60) * HOUR_HEIGHT_PX;
+        const height = (durationMinutes / 60) * HOUR_HEIGHT_PX;
+
+        return {
+          id: l.id,
+          title: l.title,
+          start: clippedStart,
+          end: clippedEnd,
+          top,
+          height: Math.max(8, height),
+          status: l.status,
+          resource: l,
+        } as EventBox;
+      })
+      .filter(Boolean) as EventBox[];
+  }, [lessons, visibleStart, visibleEnd]);
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const handleGridClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const y = e.clientY - rect.top; // px from top
+
+      const minutesFromStart = (y / HOUR_HEIGHT_PX) * 60;
+      const snapped = Math.round(minutesFromStart / MINUTES_PER_SLOT) * MINUTES_PER_SLOT;
+
+      const slotStart = new Date(visibleStart.getTime() + snapped * 60 * 1000);
+      const slotEnd = new Date(slotStart.getTime() + MINUTES_PER_SLOT * 60 * 1000);
+
+      onSelectSlot?.({ start: slotStart, end: slotEnd });
     },
-    [onSelectSlot]
+    [onSelectSlot, visibleStart]
   );
 
-  // Handle event selection (clicking existing lesson)
-  const handleSelectEvent = useCallback(
-    (event: CalendarEvent) => {
-      if (onSelectEvent) {
-        onSelectEvent(event);
-      }
-    },
-    [onSelectEvent]
-  );
+  const nowTop = (() => {
+    const m = minutesBetween(visibleStart, now);
+    if (m < 0 || m > totalVisibleMinutes) return null;
+    return (m / 60) * HOUR_HEIGHT_PX;
+  })();
 
   return (
-    <div className="h-[calc(100vh-12rem)] bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4">
-      <BigCalendar
-        localizer={localizer}
-        events={events}
-        startAccessor="start"
-        endAccessor="end"
-        titleAccessor="title"
-        view={view}
-        onView={setView}
-        date={date}
-        onNavigate={setDate}
-        onSelectSlot={handleSelectSlot}
-        onSelectEvent={handleSelectEvent}
-        selectable
-        eventPropGetter={eventStyleGetter}
-        views={['month', 'week', 'day', 'agenda']}
-        defaultView={defaultView}
-  // Configuration for 15-minute booking precision and hourly visual lines
-  // Use a 15-minute step so selections work at 15-minute granularity.
-  // We'll render hourly visual lines via CSS so the grid looks clean.
-  step={15}        // 15-minute step for selectable precision
-  timeslots={1}    // keep single timeslot per group; CSS will display hourly boundaries
-  // Scroll initial view to 5:00 AM on load (user's preferred start of day)
-  scrollToTime={new Date(1970, 1, 1, 5, 0, 0)}
-        showMultiDayTimes
-        getNow={() => new Date()} // Enable red current time indicator
-        style={{ height: '100%' }}
-        className="dark:text-gray-200"
-        // Explicit formats - force hourly-looking gutter labels
-        formats={{
-          timeGutterFormat: 'h:mm a',
-          eventTimeRangeFormat: ({ start, end }, culture, localizer) =>
-            `${localizer?.format(start, 'h:mm a', culture)} - ${localizer?.format(end, 'h:mm a', culture)}`,
-          agendaTimeRangeFormat: ({ start, end }, culture, localizer) =>
-            `${localizer?.format(start, 'h:mm a', culture)} - ${localizer?.format(end, 'h:mm a', culture)}`,
-        }}
-      />
+    <div className="scheduler p-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+      <div className="flex gap-4">
+        <div className="w-20 time-gutter">
+          {hours.map((h, i) => (
+            <div key={i} className="time-label">
+              {new Date(0, 0, 0, h).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+            </div>
+          ))}
+        </div>
 
-      {/* Legend - Updated with new color scheme */}
-      <div className="mt-4 flex flex-wrap gap-4 text-sm">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-blue-500"></div>
-          <span className="text-gray-700 dark:text-gray-300">Scheduled</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-teal-500"></div>
-          <span className="text-gray-700 dark:text-gray-300">Completed</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-rose-500"></div>
-          <span className="text-gray-700 dark:text-gray-300">Cancelled</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-amber-400"></div>
-          <span className="text-gray-700 dark:text-gray-300">No Show</span>
+        <div className="flex-1 relative scheduler-grid overflow-auto" ref={containerRef} onClick={handleGridClick} style={{ maxHeight: `calc(var(--scheduler-hour-height) * ${hours.length})` }}>
+          <div>
+            {hours.map((_, idx) => (
+              <div key={idx} className="scheduler-row" style={{ height: HOUR_HEIGHT_PX }} />
+            ))}
+          </div>
+
+          {events.map((ev) => {
+            const cls = `scheduler-event ${ev.status === 'Completed' ? 'completed' : ev.status === 'Cancelled' ? 'cancelled' : ev.status === 'No Show' ? 'noshow' : 'scheduled'}`;
+            return (
+              <div
+                key={ev.id}
+                className={cls}
+                style={{ top: ev.top, height: ev.height }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectEvent?.({ id: ev.id, resource: ev.resource });
+                }}
+              >
+                {ev.title}
+              </div>
+            );
+          })}
+
+          {nowTop !== null && <div className="current-time-line" style={{ top: nowTop }} />}
         </div>
       </div>
     </div>
   );
 }
+
