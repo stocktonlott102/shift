@@ -64,16 +64,6 @@
     font-size: 0.875rem;
   }
 
-  .scheduler-cell {
-    position: relative;
-    height: var(--scheduler-hour-height);
-  }
-
-  .slot-overlay {
-    position: absolute;
-    inset: 0;
-  }
-
   .scheduler-event {
     position: absolute;
     left: 4px;

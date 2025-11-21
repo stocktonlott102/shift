@@ -159,4 +159,3 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
     </div>
   );
 }
-

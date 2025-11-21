@@ -67,9 +67,9 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
   };
 
   // Handle selecting an existing lesson
-  const handleSelectEvent = (event: { resource: LessonWithClient }) => {
+  const handleSelectEvent = (event: { id: string; resource: LessonWithClient }) => {
     // Navigate to lesson detail page
-    router.push(`/lessons/${event.resource.id}`);
+    router.push(`/lessons/${event.id}`);
   };
 
   // Handle successful lesson booking
