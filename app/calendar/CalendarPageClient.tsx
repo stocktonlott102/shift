@@ -179,7 +179,6 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
         lessons={lessons}
         onSelectSlot={handleSelectSlot}
         onSelectEvent={handleSelectEvent}
-        defaultView="week"
       />
 
       {/* Booking Form Modal */}
