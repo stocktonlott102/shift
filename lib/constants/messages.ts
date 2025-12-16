@@ -48,6 +48,21 @@ export const ERROR_MESSAGES = {
     NOT_FOUND: 'Invoice not found.',
     ALREADY_PAID: 'This invoice has already been paid.',
   },
+  LESSON_HISTORY: {
+    FETCH_FAILED: 'Failed to load lesson history. Please try again.',
+    CONFIRM_FAILED: 'Failed to confirm lesson. Please try again.',
+    NO_OUTSTANDING: 'No outstanding lessons to confirm.',
+    INVALID_STATUS: 'Only scheduled lessons can be confirmed.',
+    FUTURE_LESSON: 'Cannot confirm a lesson that has not ended yet.',
+    NOT_SCHEDULED: 'This lesson is not in scheduled status.',
+  },
+  PAYMENT: {
+    MARK_PAID_FAILED: 'Failed to mark lesson as paid. Please try again.',
+    BULK_UPDATE_FAILED: 'Failed to update payment status for some lessons.',
+    REVERT_FAILED: 'Failed to revert payment status. Please contact support.',
+    NOT_COMPLETED: 'Only completed lessons can be marked as paid.',
+    CALCULATE_FAILED: 'Failed to calculate unpaid balance.',
+  },
   GENERIC: {
     UNEXPECTED_ERROR: 'An unexpected error occurred. Please try again.',
   },
@@ -69,6 +84,15 @@ export const SUCCESS_MESSAGES = {
     CREATED: 'Invoice created successfully!',
     UPDATED: 'Invoice updated successfully!',
     PAID: 'Invoice marked as paid!',
+  },
+  LESSON_HISTORY: {
+    CONFIRMED: 'Lesson confirmed successfully!',
+    MARKED_NO_SHOW: 'Lesson marked as no-show.',
+  },
+  PAYMENT: {
+    MARKED_PAID: 'Lesson marked as paid.',
+    BULK_PAID: (count: number) => `${count} lesson${count > 1 ? 's' : ''} marked as paid.`,
+    NOTE_SAVED: 'Note saved successfully!',
   },
 } as const;
 

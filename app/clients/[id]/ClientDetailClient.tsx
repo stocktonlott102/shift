@@ -1,10 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import ClientForm from '@/components/ClientForm';
+import LessonHistoryTable from '@/components/LessonHistoryTable';
 import { deleteClient } from '@/app/actions/client-actions';
+import { getLessonHistory, calculateUnpaidBalance } from '@/app/actions/lesson-history-actions';
 import { Client } from '@/lib/types/client';
+import { LessonHistoryEntry } from '@/lib/types/lesson-history';
 
 interface ClientDetailClientProps {
   client: Client;
@@ -16,7 +19,33 @@ export default function ClientDetailClient({ client, coachId }: ClientDetailClie
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [lessonHistory, setLessonHistory] = useState<LessonHistoryEntry[]>([]);
+  const [unpaidBalance, setUnpaidBalance] = useState(0);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const router = useRouter();
+
+  // Fetch lesson history and unpaid balance on mount
+  useEffect(() => {
+    fetchLessonData();
+  }, [client.id]);
+
+  const fetchLessonData = async () => {
+    setIsLoadingHistory(true);
+
+    // Fetch lesson history
+    const historyResult = await getLessonHistory(client.id);
+    if (historyResult.success && historyResult.data) {
+      setLessonHistory(historyResult.data);
+    }
+
+    // Fetch unpaid balance
+    const balanceResult = await calculateUnpaidBalance(client.id);
+    if (balanceResult.success && balanceResult.data) {
+      setUnpaidBalance(balanceResult.data.balance);
+    }
+
+    setIsLoadingHistory(false);
+  };
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -188,6 +217,23 @@ export default function ClientDetailClient({ client, coachId }: ClientDetailClie
             Delete Client
           </button>
         </div>
+      </div>
+
+      {/* Lesson History Section */}
+      <div className="mt-8">
+        {isLoadingHistory ? (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-12 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+            <p className="text-gray-600 dark:text-gray-400 mt-4">Loading lesson history...</p>
+          </div>
+        ) : (
+          <LessonHistoryTable
+            lessons={lessonHistory}
+            unpaidBalance={unpaidBalance}
+            clientId={client.id}
+            onRefresh={fetchLessonData}
+          />
+        )}
       </div>
 
       {/* Delete Confirmation Dialog */}

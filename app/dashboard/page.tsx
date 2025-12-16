@@ -5,6 +5,7 @@ import LogoutButton from '@/components/LogoutButton';
 import SubscribeButton from '@/components/SubscribeButton';
 import DashboardWrapper from '@/components/DashboardWrapper';
 import { checkSubscriptionStatus } from '@/app/actions/stripe-actions';
+import { getOutstandingLessonsCount } from '@/app/actions/lesson-history-actions';
 
 /**
  * Protected Dashboard Page (Server Component)
@@ -37,6 +38,10 @@ export default async function DashboardPage() {
 
   // Fetch subscription status
   const subscriptionStatus = await checkSubscriptionStatus();
+
+  // Fetch outstanding lessons count
+  const outstandingLessonsResult = await getOutstandingLessonsCount();
+  const outstandingCount = outstandingLessonsResult.success ? outstandingLessonsResult.data?.count || 0 : 0;
 
   // Extract subscription data
   const currentStatus = subscriptionStatus.success ? subscriptionStatus.subscriptionStatus : 'trial';
@@ -197,7 +202,30 @@ export default async function DashboardPage() {
         </div>
 
         {/* Dashboard Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Outstanding Lessons Card */}
+          <Link
+            href="/outstanding-lessons"
+            className="block bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-200 dark:border-yellow-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-all duration-200 transform hover:scale-105 cursor-pointer"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Outstanding Lessons
+              </h3>
+              {outstandingCount > 0 && (
+                <span className="bg-red-500 text-white rounded-full px-2 py-1 text-xs font-bold">
+                  {outstandingCount}
+                </span>
+              )}
+            </div>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              {outstandingCount}
+            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Lessons need confirmation
+            </p>
+          </Link>
+
           {/* Clients Card */}
           <Link
             href="/clients"
@@ -288,7 +316,34 @@ export default async function DashboardPage() {
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
             Quick Actions
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <Link
+              href="/outstanding-lessons"
+              className="flex flex-col items-center justify-center p-6 border-2 border-yellow-500 dark:border-yellow-400 rounded-lg hover:bg-yellow-50 dark:hover:bg-gray-700 transition-colors cursor-pointer relative"
+            >
+              {outstandingCount > 0 && (
+                <span className="absolute top-2 right-2 bg-red-500 text-white rounded-full px-2 py-0.5 text-xs font-bold">
+                  {outstandingCount}
+                </span>
+              )}
+              <svg
+                className="w-10 h-10 text-yellow-600 dark:text-yellow-400 mb-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                />
+              </svg>
+              <span className="text-sm font-medium text-gray-900 dark:text-white text-center">
+                Confirm Lessons
+              </span>
+            </Link>
+
             <Link
               href="/clients/new"
               className="flex flex-col items-center justify-center p-6 border-2 border-indigo-600 dark:border-indigo-400 rounded-lg hover:bg-indigo-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
