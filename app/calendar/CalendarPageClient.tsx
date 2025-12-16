@@ -134,13 +134,13 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
   }
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-screen bg-gray-50 dark:bg-gray-900">
+    <main className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header with prominent Back Button */}
-      <div className="mb-6">
+      <div className="flex-shrink-0 px-4 sm:px-6 lg:px-8 py-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
         {/* Back to Dashboard Button - Prominent Navigation */}
         <Link
           href="/dashboard"
-          className="inline-flex items-center mb-4 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors group"
+          className="inline-flex items-center mb-3 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors group"
         >
           <svg
             className="w-5 h-5 mr-2 transform group-hover:-translate-x-1 transition-transform"
@@ -154,28 +154,29 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
         </Link>
 
         {/* Title and Book Button */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
             Lesson Calendar
           </h1>
 
           {/* Book Lesson Button */}
           <button
             onClick={() => setShowBookingForm(true)}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl whitespace-nowrap"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 sm:py-3 px-4 sm:px-6 rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl whitespace-nowrap text-sm sm:text-base"
           >
             + Book Lesson
           </button>
         </div>
       </div>
 
-      {/* Calendar Component */}
-      <Calendar
-        lessons={lessons}
-        onSelectSlot={handleSelectSlot}
-        onSelectEvent={handleSelectEvent}
-      />
-
+      {/* Calendar Component - fills remaining space */}
+      <div className="flex-1 overflow-hidden">
+        <Calendar
+          lessons={lessons}
+          onSelectSlot={handleSelectSlot}
+          onSelectEvent={handleSelectEvent}
+        />
+      </div>
       {/* Booking Form Modal */}
       {showBookingForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
@@ -188,40 +189,6 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
               defaultEndTime={selectedSlot?.end}
             />
           </div>
-        </div>
-      )}
-
-      {/* Empty State */}
-      {lessons.length === 0 && !showBookingForm && (
-        <div className="mt-12 text-center bg-white dark:bg-gray-800 rounded-lg shadow-md p-8">
-          <svg
-            className="mx-auto h-16 w-16 text-gray-400 dark:text-gray-500"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-            />
-          </svg>
-          <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">
-            No lessons scheduled
-          </h3>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Get started by booking your first lesson
-          </p>
-          <button
-            onClick={() => setShowBookingForm(true)}
-            className="mt-6 inline-flex items-center px-6 py-3 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 transition-all duration-200 transform hover:scale-105"
-          >
-            <svg className="-ml-1 mr-2 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-            </svg>
-            Book Your First Lesson
-          </button>
         </div>
       )}
     </main>

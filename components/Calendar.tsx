@@ -35,8 +35,28 @@ function minutesBetween(a: Date, b: Date) {
 function getWeekStart(date: Date): Date {
   const d = new Date(date);
   const day = d.getDay();
-  const diff = d.getDate() - day; // Sunday as start of week
-  return new Date(d.setDate(diff));
+  // Monday as start of week (day 1)
+  const diff = day === 0 ? -6 : 1 - day;
+  const weekStart = new Date(d);
+  weekStart.setDate(d.getDate() + diff);
+  weekStart.setHours(0, 0, 0, 0);
+  return weekStart;
+}
+
+function getWeekDays(weekStart: Date): Date[] {
+  const days: Date[] = [];
+  for (let i = 0; i < 7; i++) {
+    const day = new Date(weekStart);
+    day.setDate(weekStart.getDate() + i);
+    days.push(day);
+  }
+  return days;
+}
+
+function isSameDay(date1: Date, date2: Date): boolean {
+  return date1.getFullYear() === date2.getFullYear() &&
+         date1.getMonth() === date2.getMonth() &&
+         date1.getDate() === date2.getDate();
 }
 
 function formatDateHeader(date: Date, view: CalendarView): string {
@@ -68,6 +88,10 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
   const [now, setNow] = useState(new Date());
   const [currentDate, setCurrentDate] = useState(date);
   const [view, setView] = useState<CalendarView>('day');
+
+  // Week view specific data
+  const weekStart = useMemo(() => getWeekStart(currentDate), [currentDate]);
+  const weekDays = useMemo(() => getWeekDays(weekStart), [weekStart]);
 
   const { start: visibleStart, end: visibleEnd } = useMemo(() => buildVisibleRange(currentDate), [currentDate]);
 
@@ -127,20 +151,30 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
   }, []);
 
   const handleGridClick = useCallback(
-    (e: React.MouseEvent) => {
+    (e: React.MouseEvent, dayIndex?: number) => {
       if (!containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
-      const y = e.clientY - rect.top; // px from top
+      const y = e.clientY - rect.top;
 
       const minutesFromStart = (y / HOUR_HEIGHT_PX) * 60;
       const snapped = Math.round(minutesFromStart / MINUTES_PER_SLOT) * MINUTES_PER_SLOT;
 
-      const slotStart = new Date(visibleStart.getTime() + snapped * 60 * 1000);
-      const slotEnd = new Date(slotStart.getTime() + MINUTES_PER_SLOT * 60 * 1000);
+      let slotStart: Date;
+      if (view === 'week' && dayIndex !== undefined) {
+        // Week view: use the specific day
+        const targetDay = weekDays[dayIndex];
+        slotStart = new Date(targetDay);
+        slotStart.setHours(5, 30, 0, 0);
+        slotStart.setMinutes(slotStart.getMinutes() + snapped);
+      } else {
+        // Day view: use current date
+        slotStart = new Date(visibleStart.getTime() + snapped * 60 * 1000);
+      }
 
+      const slotEnd = new Date(slotStart.getTime() + MINUTES_PER_SLOT * 60 * 1000);
       onSelectSlot?.({ start: slotStart, end: slotEnd });
     },
-    [onSelectSlot, visibleStart]
+    [onSelectSlot, visibleStart, view, weekDays]
   );
 
   const nowTop = (() => {
@@ -148,6 +182,49 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
     if (m < 0 || m > totalVisibleMinutes) return null;
     return (m / 60) * HOUR_HEIGHT_PX;
   })();
+
+  // Week view: group events by day
+  const weekEvents = useMemo(() => {
+    if (view !== 'week') return [];
+    
+    return weekDays.map((day) => {
+      const dayStart = new Date(day);
+      dayStart.setHours(5, 30, 0, 0);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setHours(dayStart.getHours() + 24, 30, 0, 0);
+
+      const dayLessons = lessons.filter((l) => {
+        const s = new Date(l.start_time);
+        const e = new Date(l.end_time);
+        return !(e <= dayStart || s >= dayEnd);
+      });
+
+      return dayLessons.map((l) => {
+        const s = new Date(l.start_time);
+        const e = new Date(l.end_time);
+
+        const clippedStart = s < dayStart ? dayStart : s;
+        const clippedEnd = e > dayEnd ? dayEnd : e;
+
+        const minutesFromStart = minutesBetween(dayStart, clippedStart);
+        const durationMinutes = Math.max(1, minutesBetween(clippedStart, clippedEnd));
+
+        const top = (minutesFromStart / 60) * HOUR_HEIGHT_PX;
+        const height = (durationMinutes / 60) * HOUR_HEIGHT_PX;
+
+        return {
+          id: l.id,
+          title: l.title,
+          start: clippedStart,
+          end: clippedEnd,
+          top,
+          height: Math.max(8, height),
+          status: l.status,
+          resource: l,
+        } as EventBox;
+      });
+    });
+  }, [view, weekDays, lessons]);
 
   // Navigation handlers
   const handlePrevious = () => {
@@ -179,11 +256,11 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
   };
 
   return (
-    <div className="scheduler p-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+    <div className="flex flex-col h-full w-full">
       {/* Control Panel */}
       <div className="calendar-controls">
         {/* Navigation */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <button
             onClick={handleToday}
             className="today-button"
@@ -208,7 +285,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
-          <h2 className="date-header">
+          <h2 className="date-header text-sm sm:text-base md:text-xl">
             {formatDateHeader(currentDate, view)}
           </h2>
         </div>
@@ -237,51 +314,152 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
       </div>
 
       {/* Calendar Grid */}
-      <div className="scheduler">
-        <div className="flex gap-2">
-          <div className="w-16 time-gutter">
-            {timeSlots.map((slot, i) => (
-              <div
-                key={i}
-                className="time-label"
-                style={{ height: slot.isHalfSlot ? `${HOUR_HEIGHT_PX / 2}px` : `${HOUR_HEIGHT_PX}px` }}
-              >
-                {!slot.isHalfSlot && new Date(0, 0, 0, slot.hour).toLocaleTimeString([], { hour: 'numeric' }).replace(':00', '')}
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        {view === 'week' ? (
+          // Week View
+          <div className="flex flex-col h-full">
+            {/* Week Grid with Header */}
+            <div className="flex h-full overflow-auto relative">
+              <div className="w-12 sm:w-16 flex-shrink-0 sticky left-0 z-10 bg-white dark:bg-gray-900">
+                {/* Empty space for header alignment */}
+                <div className="border-b border-gray-200 dark:border-gray-700" style={{ height: '60px' }} />
+                
+                {/* Time labels */}
+                {timeSlots.map((slot, i) => (
+                  <div
+                    key={i}
+                    className="time-label"
+                    style={{ height: slot.isHalfSlot ? `${HOUR_HEIGHT_PX / 2}px` : `${HOUR_HEIGHT_PX}px` }}
+                  >
+                    {!slot.isHalfSlot && new Date(0, 0, 0, slot.hour).toLocaleTimeString([], { hour: 'numeric' }).replace(':00', '')}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          <div className="flex-1 relative scheduler-grid overflow-auto" ref={containerRef} onClick={handleGridClick} style={{ maxHeight: `calc(var(--scheduler-hour-height) * ${timeSlots.length - 0.5})` }}>
-            <div>
-              {timeSlots.map((slot, idx) => (
+              <div className="flex-1 flex flex-col min-w-0">
+                {/* Week Header - inside scrollable area */}
+                <div className="flex border-b border-gray-200 dark:border-gray-700 flex-shrink-0" style={{ height: '60px' }}>
+                  {weekDays.map((day, idx) => {
+                    const isToday = isSameDay(day, now);
+                    return (
+                      <div
+                        key={idx}
+                        className={`flex-1 text-center py-2 border-l border-gray-200 dark:border-gray-700 ${
+                          isToday ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''
+                        }`}
+                      >
+                        <div className={`text-xs sm:text-sm font-semibold ${isToday ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                          {day.toLocaleDateString('en-US', { weekday: 'short' })}
+                        </div>
+                        <div className={`text-lg sm:text-xl font-bold ${isToday ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-900 dark:text-white'}`}>
+                          {day.getDate()}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Week day columns */}
+                <div className="flex">
+                  {weekDays.map((day, dayIdx) => {
+                    const isToday = isSameDay(day, now);
+                    const dayEventsForCol = weekEvents[dayIdx] || [];
+                    
+                    return (
+                      <div
+                        key={dayIdx}
+                        className={`flex-1 relative border-l border-gray-200 dark:border-gray-700 ${
+                          isToday ? 'bg-indigo-50/30 dark:bg-indigo-900/10' : ''
+                        }`}
+                        onClick={(e) => handleGridClick(e, dayIdx)}
+                      >
+                        {/* Time grid rows */}
+                        {timeSlots.map((slot, idx) => (
+                          <div
+                            key={idx}
+                            className="scheduler-row"
+                            style={{ height: slot.isHalfSlot ? `${HOUR_HEIGHT_PX / 2}px` : `${HOUR_HEIGHT_PX}px` }}
+                          />
+                        ))}
+
+                        {/* Events for this day */}
+                        {dayEventsForCol.map((ev) => {
+                          const cls = `scheduler-event ${ev.status === 'Completed' ? 'completed' : ev.status === 'Cancelled' ? 'cancelled' : ev.status === 'No Show' ? 'noshow' : 'scheduled'}`;
+                          return (
+                            <div
+                              key={ev.id}
+                              className={cls}
+                              style={{ top: ev.top, height: ev.height }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onSelectEvent?.({ id: ev.id, resource: ev.resource });
+                              }}
+                            >
+                              {ev.title}
+                            </div>
+                          );
+                        })}
+
+                        {/* Current time line for today */}
+                        {isToday && nowTop !== null && (
+                          <div className="current-time-line" style={{ top: nowTop }} />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          // Day View
+          <div className="flex h-full overflow-auto relative">
+            <div className="w-12 sm:w-16 flex-shrink-0 sticky left-0 z-10 bg-white dark:bg-gray-900">
+              {timeSlots.map((slot, i) => (
                 <div
-                  key={idx}
-                  className="scheduler-row"
+                  key={i}
+                  className="time-label"
                   style={{ height: slot.isHalfSlot ? `${HOUR_HEIGHT_PX / 2}px` : `${HOUR_HEIGHT_PX}px` }}
-                />
+                >
+                  {!slot.isHalfSlot && new Date(0, 0, 0, slot.hour).toLocaleTimeString([], { hour: 'numeric' }).replace(':00', '')}
+                </div>
               ))}
             </div>
 
-            {events.map((ev) => {
-              const cls = `scheduler-event ${ev.status === 'Completed' ? 'completed' : ev.status === 'Cancelled' ? 'cancelled' : ev.status === 'No Show' ? 'noshow' : 'scheduled'}`;
-              return (
-                <div
-                  key={ev.id}
-                  className={cls}
-                  style={{ top: ev.top, height: ev.height }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSelectEvent?.({ id: ev.id, resource: ev.resource });
-                  }}
-                >
-                  {ev.title}
+            <div className="flex-1 min-w-0">
+              <div className="relative scheduler-grid" ref={containerRef} onClick={handleGridClick}>
+                <div>
+                  {timeSlots.map((slot, idx) => (
+                    <div
+                      key={idx}
+                      className="scheduler-row"
+                      style={{ height: slot.isHalfSlot ? `${HOUR_HEIGHT_PX / 2}px` : `${HOUR_HEIGHT_PX}px` }}
+                    />
+                  ))}
                 </div>
-              );
-            })}
 
-            {nowTop !== null && <div className="current-time-line" style={{ top: nowTop }} />}
+                {events.map((ev) => {
+                  const cls = `scheduler-event ${ev.status === 'Completed' ? 'completed' : ev.status === 'Cancelled' ? 'cancelled' : ev.status === 'No Show' ? 'noshow' : 'scheduled'}`;
+                  return (
+                    <div
+                      key={ev.id}
+                      className={cls}
+                      style={{ top: ev.top, height: ev.height }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectEvent?.({ id: ev.id, resource: ev.resource });
+                      }}
+                    >
+                      {ev.title}
+                    </div>
+                  );
+                })}
+
+                {nowTop !== null && <div className="current-time-line" style={{ top: nowTop }} />}
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
