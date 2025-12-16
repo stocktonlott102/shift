@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -14,6 +14,26 @@ export default function LoginPage() {
 
   const router = useRouter();
   const supabase = createClient();
+
+  useEffect(() => {
+    // On page load, check if this was a temporary session that should be cleared
+    const checkTempSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session && !sessionStorage.getItem('shift_temp_session')) {
+        // Session exists but no temp flag in sessionStorage
+        // Check if this was marked as a temporary session
+        const wasTemp = localStorage.getItem('shift_was_temp_session');
+        if (wasTemp === 'true') {
+          // Browser was restarted without Remember Me, so clear the session
+          await supabase.auth.signOut();
+          localStorage.removeItem('shift_was_temp_session');
+        }
+      }
+    };
+    
+    checkTempSession();
+  }, [supabase.auth]);
 
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -37,22 +57,29 @@ export default function LoginPage() {
 
     try {
       // Sign in with Supabase
-      // The 'options' parameter controls session persistence
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
-        options: {
-          // If rememberMe is true, session persists across browser restarts (30 days default)
-          // If false, session is cleared when browser closes
-          persistSession: rememberMe,
-        },
       });
 
       if (signInError) {
         throw signInError;
       }
 
-      if (data?.user) {
+      if (data?.user && data?.session) {
+        // Handle Remember Me functionality
+        if (!rememberMe) {
+          // If Remember Me is NOT checked, mark this as a temporary session
+          // sessionStorage is cleared when browser closes
+          sessionStorage.setItem('shift_temp_session', 'true');
+          // localStorage persists, so we use it to track that this session should be cleared
+          localStorage.setItem('shift_was_temp_session', 'true');
+        } else {
+          // Remember Me IS checked - clear any temp flags and let Supabase persist normally
+          localStorage.removeItem('shift_was_temp_session');
+        }
+        // Supabase automatically persists session in localStorage (30 days)
+        
         // Successfully logged in, redirect to dashboard
         router.push('/dashboard');
       }

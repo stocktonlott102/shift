@@ -9,6 +9,10 @@ export default function LogoutButton() {
   const handleLogout = async () => {
     setIsLoading(true);
     try {
+      // Clear temporary session flags before logging out
+      sessionStorage.removeItem('shift_temp_session');
+      localStorage.removeItem('shift_was_temp_session');
+      
       await logout();
       // Redirect happens in the server action
     } catch (error) {
