@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { LessonWithClient } from '@/lib/types/lesson';
 import { getOutstandingLessons, confirmLesson, markLessonNoShow } from '@/app/actions/lesson-history-actions';
 import Link from 'next/link';
+import Navigation from '@/components/Navigation';
 
 interface OutstandingLessonsClientProps {
   coachId: string;
@@ -95,39 +96,38 @@ export default function OutstandingLessonsClient({ coachId }: OutstandingLessons
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-8">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <>
+        <Navigation />
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-8">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+            </div>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-8">
-      <div className="max-w-7xl mx-auto px-4">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                Outstanding Lessons
-              </h1>
-              {lessons.length > 0 && (
-                <span className="bg-red-500 text-white rounded-full px-3 py-1 text-sm font-semibold">
-                  {lessons.length}
-                </span>
-              )}
+    <>
+      <Navigation />
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-8">
+        <div className="max-w-7xl mx-auto px-4">
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex items-center mb-4">
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                  Outstanding Lessons
+                </h1>
+                {lessons.length > 0 && (
+                  <span className="bg-red-500 text-white rounded-full px-3 py-1 text-sm font-semibold">
+                    {lessons.length}
+                  </span>
+                )}
+              </div>
             </div>
-            <Link
-              href="/dashboard"
-              className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium"
-            >
-              ← Back to Dashboard
-            </Link>
-          </div>
           <p className="text-gray-600 dark:text-gray-400">
             Review and confirm lessons that have been completed
           </p>
@@ -251,7 +251,8 @@ export default function OutstandingLessonsClient({ coachId }: OutstandingLessons
             ))}
           </div>
         )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

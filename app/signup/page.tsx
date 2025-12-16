@@ -55,7 +55,7 @@ export default function SignUpPage() {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: `${window.location.origin}/calendar`,
         },
       });
 
@@ -73,9 +73,9 @@ export default function SignUpPage() {
 
         // If email confirmation is not required, redirect immediately
         if (data.session) {
-          setSuccessMessage('Account created successfully! Redirecting to dashboard...');
+          setSuccessMessage('Account created successfully! Redirecting to calendar...');
           setTimeout(() => {
-            router.push('/dashboard');
+            router.push('/calendar');
           }, 1500);
         } else {
           // If email confirmation is required

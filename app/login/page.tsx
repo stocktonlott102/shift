@@ -79,9 +79,9 @@ export default function LoginPage() {
           localStorage.removeItem('shift_was_temp_session');
         }
         // Supabase automatically persists session in localStorage (30 days)
-        
-        // Successfully logged in, redirect to dashboard
-        router.push('/dashboard');
+
+        // Successfully logged in, redirect to calendar
+        router.push('/calendar');
       }
     } catch (err: any) {
       console.error('Login error:', err);

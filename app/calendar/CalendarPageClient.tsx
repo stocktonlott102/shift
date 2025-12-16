@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Calendar from '@/components/Calendar';
 import BookLessonForm from '@/components/BookLessonForm';
+import Navigation from '@/components/Navigation';
 import { getLessons } from '@/app/actions/lesson-actions';
 import { getClients } from '@/app/actions/client-actions';
 import type { LessonWithClient } from '@/lib/types/lesson';
@@ -134,24 +135,11 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
   }
 
   return (
-    <main className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header with prominent Back Button */}
-      <div className="flex-shrink-0 px-4 sm:px-6 lg:px-8 py-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-        {/* Back to Dashboard Button - Prominent Navigation */}
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center mb-3 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors group"
-        >
-          <svg
-            className="w-5 h-5 mr-2 transform group-hover:-translate-x-1 transition-transform"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          <span className="font-semibold">Back to Dashboard</span>
-        </Link>
+    <>
+      <Navigation />
+      <main className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
+        {/* Header */}
+        <div className="flex-shrink-0 px-4 sm:px-6 lg:px-8 py-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
 
         {/* Title and Book Button */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -192,5 +180,6 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
         </div>
       )}
     </main>
+    </>
   );
 }

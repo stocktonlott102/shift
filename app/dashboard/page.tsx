@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import LogoutButton from '@/components/LogoutButton';
 import SubscribeButton from '@/components/SubscribeButton';
+import Navigation from '@/components/Navigation';
 import DashboardWrapper from '@/components/DashboardWrapper';
 import { checkSubscriptionStatus } from '@/app/actions/stripe-actions';
 import { getOutstandingLessonsCount } from '@/app/actions/lesson-history-actions';
@@ -103,13 +104,14 @@ export default async function DashboardPage() {
   // User is authenticated, render the dashboard wrapped with session refresh handler
   return (
     <DashboardWrapper>
+      <Navigation />
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       {/* Header */}
       <header className="bg-white dark:bg-gray-800 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Shift
+              Dashboard
             </h1>
             <LogoutButton />
           </div>
@@ -202,7 +204,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Dashboard Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {/* Outstanding Lessons Card */}
           <Link
             href="/outstanding-lessons"
@@ -255,35 +257,6 @@ export default async function DashboardPage() {
             </p>
           </Link>
 
-          {/* Upcoming Lessons Card */}
-          <Link
-            href="/calendar"
-            className="block bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-all duration-200 transform hover:scale-105 cursor-pointer"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Today&apos;s Lessons
-              </h3>
-              <svg
-                className="w-8 h-8 text-green-600 dark:text-green-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-            </div>
-            <p className="text-3xl font-bold text-gray-900 dark:text-white mb-2">0</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Scheduled lessons
-            </p>
-          </Link>
-
           {/* Outstanding Payments Card */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between mb-4">
@@ -316,7 +289,7 @@ export default async function DashboardPage() {
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
             Quick Actions
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <Link
               href="/outstanding-lessons"
               className="flex flex-col items-center justify-center p-6 border-2 border-yellow-500 dark:border-yellow-400 rounded-lg hover:bg-yellow-50 dark:hover:bg-gray-700 transition-colors cursor-pointer relative"
@@ -366,28 +339,6 @@ export default async function DashboardPage() {
               </span>
             </Link>
 
-            <Link
-              href="/calendar"
-              className="flex flex-col items-center justify-center p-6 border-2 border-indigo-600 dark:border-indigo-400 rounded-lg hover:bg-indigo-50 dark:hover:bg-gray-700 transition-colors"
-            >
-              <svg
-                className="w-10 h-10 text-indigo-600 dark:text-indigo-400 mb-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                />
-              </svg>
-              <span className="text-sm font-medium text-gray-900 dark:text-white">
-                Schedule Lesson
-              </span>
-            </Link>
-
             <button className="flex flex-col items-center justify-center p-6 border-2 border-indigo-600 dark:border-indigo-400 rounded-lg hover:bg-indigo-50 dark:hover:bg-gray-700 transition-colors">
               <svg
                 className="w-10 h-10 text-indigo-600 dark:text-indigo-400 mb-2"
@@ -406,28 +357,6 @@ export default async function DashboardPage() {
                 Create Invoice
               </span>
             </button>
-
-            <Link
-              href="/calendar"
-              className="flex flex-col items-center justify-center p-6 border-2 border-indigo-600 dark:border-indigo-400 rounded-lg hover:bg-indigo-50 dark:hover:bg-gray-700 transition-colors"
-            >
-              <svg
-                className="w-10 h-10 text-indigo-600 dark:text-indigo-400 mb-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-              <span className="text-sm font-medium text-gray-900 dark:text-white">
-                View Calendar
-              </span>
-            </Link>
           </div>
         </div>
 
