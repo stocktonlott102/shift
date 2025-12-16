@@ -7,11 +7,18 @@ import { redirect } from 'next/navigation';
 /**
  * Server Action to handle user logout
  * This is called from the LogoutButton client component
+ * 
+ * Clears all authentication tokens including:
+ * - Access tokens (short-lived)
+ * - Refresh tokens (persistent, 30-day tokens used for "Remember Me")
+ * - Session cookies (HttpOnly, Secure, SameSite)
+ * 
+ * After logout, user must re-authenticate even if they had "Remember Me" enabled.
  */
 export async function logout() {
   const supabase = await createClient();
 
-  // Sign out the user
+  // Sign out the user - this invalidates and removes all tokens/cookies
   const { error } = await supabase.auth.signOut();
 
   if (error) {

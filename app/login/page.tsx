@@ -8,6 +8,7 @@ import Link from 'next/link';
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,9 +37,15 @@ export default function LoginPage() {
 
     try {
       // Sign in with Supabase
+      // The 'options' parameter controls session persistence
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
+        options: {
+          // If rememberMe is true, session persists across browser restarts (30 days default)
+          // If false, session is cleared when browser closes
+          persistSession: rememberMe,
+        },
       });
 
       if (signInError) {
@@ -137,8 +144,26 @@ export default function LoginPage() {
               />
             </div>
 
-            {/* Forgot Password Link */}
-            <div className="flex items-center justify-end">
+            {/* Remember Me & Forgot Password */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <input
+                  id="remember-me"
+                  name="remember-me"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded cursor-pointer"
+                  disabled={isLoading}
+                />
+                <label
+                  htmlFor="remember-me"
+                  className="ml-2 block text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none"
+                >
+                  Remember me
+                </label>
+              </div>
+
               <Link
                 href="/forgot-password"
                 className="text-sm text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors"
