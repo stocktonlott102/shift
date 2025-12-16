@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import LogoutButton from '@/components/LogoutButton';
 import SubscribeButton from '@/components/SubscribeButton';
 import Navigation from '@/components/Navigation';
 import DashboardWrapper from '@/components/DashboardWrapper';
@@ -109,46 +108,15 @@ export default async function DashboardPage() {
       {/* Header */}
       <header className="bg-white dark:bg-gray-800 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Dashboard
-            </h1>
-            <LogoutButton />
-          </div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Dashboard
+          </h1>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Subscription Status Banner */}
-        {isActive && (
-          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg shadow-md p-6 mb-8">
-            <div className="flex items-center">
-              <svg
-                className="w-8 h-8 text-green-600 dark:text-green-400 mr-3"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <div>
-                <h3 className="text-lg font-bold text-green-900 dark:text-green-100">
-                  Subscription Active!
-                </h3>
-                <p className="text-sm text-green-700 dark:text-green-300">
-                  Enjoy full access to all Shift features. Thank you for subscribing!
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
+        {/* Subscription Status Banner - Only show for non-active users */}
         {needsSubscription && (
           <div className={`bg-gradient-to-r ${bannerColor} rounded-lg shadow-xl p-6 sm:p-8 mb-8 text-white`}>
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
@@ -182,26 +150,6 @@ export default async function DashboardPage() {
             </div>
           </div>
         )}
-
-        {/* Welcome Section */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-8 mb-8">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-            Welcome, Coach!
-          </h2>
-          <div className="space-y-2">
-            <p className="text-gray-600 dark:text-gray-400">
-              You&apos;re successfully logged in to Shift.
-            </p>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Email:
-              </span>
-              <span className="text-sm text-indigo-600 dark:text-indigo-400 font-semibold">
-                {user.email}
-              </span>
-            </div>
-          </div>
-        </div>
 
         {/* Dashboard Overview Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
