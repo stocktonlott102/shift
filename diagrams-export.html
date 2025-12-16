@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shift Architecture Diagrams - Export to PNG/PDF</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            themeVariables: {
+                fontSize: '16px'
+            }
+        });
+    </script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4A90E2;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #555;
+            margin-top: 40px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .diagram-container {
+            background: white;
+            padding: 30px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .export-buttons {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        button {
+            background: #4A90E2;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #357ABD;
+        }
+        button.secondary {
+            background: #3ECF8E;
+        }
+        button.secondary:hover {
+            background: #2DB574;
+        }
+        .instructions {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .mermaid {
+            display: flex;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎨 Shift Application - Architecture Diagrams</h1>
+
+    <div class="instructions">
+        <strong>📥 How to Export:</strong>
+        <ol>
+            <li><strong>For PNG:</strong> Right-click on any diagram below and select "Save image as..."</li>
+            <li><strong>For PDF:</strong> Use your browser's print function (Cmd/Ctrl+P) and select "Save as PDF". You can print individual diagrams or all at once.</li>
+            <li><strong>For SVG (vector):</strong> Use the "Copy as SVG" buttons, then paste into design tools like Figma or Adobe Illustrator</li>
+            <li><strong>For editing:</strong> Copy the diagram code and paste it into <a href="https://mermaid.live" target="_blank">mermaid.live</a></li>
+        </ol>
+    </div>
+
+    <h2>1. High-Level System Architecture</h2>
+    <div class="diagram-container">
+        <div class="export-buttons">
+            <button onclick="copyToClipboard('diagram1')">📋 Copy Mermaid Code</button>
+            <button class="secondary" onclick="window.open('https://mermaid.live/edit#pako:' + btoa(document.getElementById('diagram1').textContent))">🔗 Open in Mermaid Live</button>
+        </div>
+        <pre id="diagram1" style="display:none;">
+graph TB
+    subgraph "Users"
+        U1[Coach - Desktop Browser]
+        U2[Coach - Mobile Browser]
+    end
+
+    subgraph "CDN & Edge Network"
+        CF[Vercel Edge Network<br/>Global CDN]
+    end
+
+    subgraph "Application Layer - Vercel Serverless"
+        direction TB
+        MW[Middleware<br/>Session Refresh]
+        SSR[Server Components<br/>Pages & Routes]
+        SA[Server Actions<br/>Business Logic]
+        API[API Routes<br/>Webhooks]
+    end
+
+    subgraph "External Services"
+        direction TB
+        SB[(Supabase<br/>PostgreSQL + Auth)]
+        ST[Stripe<br/>Payment Processing]
+        EM[Email Service<br/>Planned]
+    end
+
+    subgraph "Storage & Persistence"
+        direction TB
+        DB[(Database<br/>6 Tables)]
+        AUTH[(Auth Users<br/>Supabase Auth)]
+    end
+
+    U1 -->|HTTPS| CF
+    U2 -->|HTTPS| CF
+    CF -->|Route Request| MW
+    MW -->|Verify Session| SB
+    MW --> SSR
+    SSR -->|Data Fetch| SA
+    SSR -->|Display| CF
+    SA -->|CRUD Operations| SB
+    SA -->|Subscription Mgmt| ST
+    API -->|Process Webhooks| ST
+    API -->|Update DB| SB
+    SB --> DB
+    SB --> AUTH
+    ST -.->|Async Webhooks| API
+    SA -.->|Future: Send Emails| EM
+
+    style CF fill:#4A90E2
+    style SB fill:#3ECF8E
+    style ST fill:#635BFF
+    style DB fill:#F39C12
+    style AUTH fill:#E74C3C
+        </pre>
+        <div class="mermaid">
+graph TB
+    subgraph "Users"
+        U1[Coach - Desktop Browser]
+        U2[Coach - Mobile Browser]
+    end
+
+    subgraph "CDN & Edge Network"
+        CF[Vercel Edge Network<br/>Global CDN]
+    end
+
+    subgraph "Application Layer - Vercel Serverless"
+        direction TB
+        MW[Middleware<br/>Session Refresh]
+        SSR[Server Components<br/>Pages & Routes]
+        SA[Server Actions<br/>Business Logic]
+        API[API Routes<br/>Webhooks]
+    end
+
+    subgraph "External Services"
+        direction TB
+        SB[(Supabase<br/>PostgreSQL + Auth)]
+        ST[Stripe<br/>Payment Processing]
+        EM[Email Service<br/>Planned]
+    end
+
+    subgraph "Storage & Persistence"
+        direction TB
+        DB[(Database<br/>6 Tables)]
+        AUTH[(Auth Users<br/>Supabase Auth)]
+    end
+
+    U1 -->|HTTPS| CF
+    U2 -->|HTTPS| CF
+    CF -->|Route Request| MW
+    MW -->|Verify Session| SB
+    MW --> SSR
+    SSR -->|Data Fetch| SA
+    SSR -->|Display| CF
+    SA -->|CRUD Operations| SB
+    SA -->|Subscription Mgmt| ST
+    API -->|Process Webhooks| ST
+    API -->|Update DB| SB
+    SB --> DB
+    SB --> AUTH
+    ST -.->|Async Webhooks| API
+    SA -.->|Future: Send Emails| EM
+
+    style CF fill:#4A90E2
+    style SB fill:#3ECF8E
+    style ST fill:#635BFF
+    style DB fill:#F39C12
+    style AUTH fill:#E74C3C
+        </div>
+    </div>
+
+    <h2>2. Authentication Flow</h2>
+    <div class="diagram-container">
+        <div class="export-buttons">
+            <button onclick="copyToClipboard('diagram2')">📋 Copy Mermaid Code</button>
+            <button class="secondary" onclick="window.open('https://mermaid.live')">🔗 Open in Mermaid Live</button>
+        </div>
+        <pre id="diagram2" style="display:none;">
+sequenceDiagram
+    actor User as Coach
+    participant Browser
+    participant LoginPage as Login Page<br/>(Client Component)
+    participant SupabaseClient as Supabase Client<br/>(Browser)
+    participant SupabaseAuth as Supabase Auth API
+    participant AuthDB as auth.users<br/>Database
+    participant Middleware
+    participant Dashboard
+
+    User->>Browser: Navigate to /login
+    Browser->>LoginPage: Render login form
+    LoginPage-->>User: Display form
+
+    User->>LoginPage: Enter email & password
+    User->>LoginPage: Click "Log In"
+
+    LoginPage->>LoginPage: Validate input (client-side)
+    LoginPage->>SupabaseClient: signInWithPassword(email, password)
+
+    SupabaseClient->>SupabaseAuth: POST /auth/v1/token
+    SupabaseAuth->>AuthDB: Query user by email
+    AuthDB-->>SupabaseAuth: User record
+
+    SupabaseAuth->>SupabaseAuth: Compare password hash (bcrypt)
+
+    alt Password Valid
+        SupabaseAuth->>SupabaseAuth: Generate JWT tokens<br/>(access_token + refresh_token)
+        SupabaseAuth->>SupabaseAuth: Create session
+        SupabaseAuth-->>SupabaseClient: Session data + tokens
+        SupabaseClient->>Browser: Set cookies<br/>(sb-access-token, sb-refresh-token)
+        SupabaseClient-->>LoginPage: Success
+        LoginPage->>Browser: Navigate to /dashboard
+
+        Browser->>Middleware: GET /dashboard
+        Middleware->>Middleware: Read session cookie
+        Middleware->>SupabaseAuth: Verify & refresh token
+        SupabaseAuth-->>Middleware: Valid session
+        Middleware->>Dashboard: Continue to page
+        Dashboard->>Dashboard: Fetch user data
+        Dashboard-->>User: Show dashboard
+    else Password Invalid
+        SupabaseAuth-->>SupabaseClient: Error: Invalid credentials
+        SupabaseClient-->>LoginPage: Error
+        LoginPage-->>User: Display error message
+    end
+
+    Note over User,Dashboard: Session valid for 1 hour<br/>Middleware refreshes on each request
+        </pre>
+        <div class="mermaid">
+sequenceDiagram
+    actor User as Coach
+    participant Browser
+    participant LoginPage as Login Page<br/>(Client Component)
+    participant SupabaseClient as Supabase Client<br/>(Browser)
+    participant SupabaseAuth as Supabase Auth API
+    participant AuthDB as auth.users<br/>Database
+    participant Middleware
+    participant Dashboard
+
+    User->>Browser: Navigate to /login
+    Browser->>LoginPage: Render login form
+    LoginPage-->>User: Display form
+
+    User->>LoginPage: Enter email & password
+    User->>LoginPage: Click "Log In"
+
+    LoginPage->>LoginPage: Validate input (client-side)
+    LoginPage->>SupabaseClient: signInWithPassword(email, password)
+
+    SupabaseClient->>SupabaseAuth: POST /auth/v1/token
+    SupabaseAuth->>AuthDB: Query user by email
+    AuthDB-->>SupabaseAuth: User record
+
+    SupabaseAuth->>SupabaseAuth: Compare password hash (bcrypt)
+
+    alt Password Valid
+        SupabaseAuth->>SupabaseAuth: Generate JWT tokens<br/>(access_token + refresh_token)
+        SupabaseAuth->>SupabaseAuth: Create session
+        SupabaseAuth-->>SupabaseClient: Session data + tokens
+        SupabaseClient->>Browser: Set cookies<br/>(sb-access-token, sb-refresh-token)
+        SupabaseClient-->>LoginPage: Success
+        LoginPage->>Browser: Navigate to /dashboard
+
+        Browser->>Middleware: GET /dashboard
+        Middleware->>Middleware: Read session cookie
+        Middleware->>SupabaseAuth: Verify & refresh token
+        SupabaseAuth-->>Middleware: Valid session
+        Middleware->>Dashboard: Continue to page
+        Dashboard->>Dashboard: Fetch user data
+        Dashboard-->>User: Show dashboard
+    else Password Invalid
+        SupabaseAuth-->>SupabaseClient: Error: Invalid credentials
+        SupabaseClient-->>LoginPage: Error
+        LoginPage-->>User: Display error message
+    end
+
+    Note over User,Dashboard: Session valid for 1 hour<br/>Middleware refreshes on each request
+        </div>
+    </div>
+
+    <h2>3. Payment Flow (Stripe Integration)</h2>
+    <div class="diagram-container">
+        <div class="export-buttons">
+            <button onclick="copyToClipboard('diagram3')">📋 Copy Mermaid Code</button>
+            <button class="secondary" onclick="window.open('https://mermaid.live')">🔗 Open in Mermaid Live</button>
+        </div>
+        <pre id="diagram3" style="display:none;">
+sequenceDiagram
+    actor User as Coach
+    participant Dashboard
+    participant SubscribeBtn as Subscribe Button
+    participant ServerAction as stripe-actions.ts<br/>createCheckoutSession()
+    participant Supabase as Supabase DB
+    participant StripeAPI as Stripe API
+    participant StripeCheckout as Stripe Checkout<br/>(External)
+    participant StripeWebhook as Stripe Servers
+    participant WebhookAPI as /api/webhooks/stripe
+    participant ProfilesDB as profiles table
+
+    User->>Dashboard: View trial banner
+    Dashboard-->>User: Show "Subscribe" button
+    User->>SubscribeBtn: Click "Subscribe Now"
+
+    SubscribeBtn->>ServerAction: Call createCheckoutSession(priceId)
+
+    rect rgb(200, 220, 240)
+        Note over ServerAction,Supabase: Server-Side Verification
+        ServerAction->>Supabase: Verify user authentication
+        Supabase-->>ServerAction: User authenticated
+        ServerAction->>Supabase: Fetch profile (check existing subscription)
+        Supabase-->>ServerAction: Profile data
+        ServerAction->>ServerAction: Verify not already subscribed
+    end
+
+    ServerAction->>StripeAPI: Create checkout session<br/>{customer_email, line_items, metadata}
+    StripeAPI->>StripeAPI: Generate session ID
+    StripeAPI-->>ServerAction: {id, url: "https://checkout.stripe.com/..."}
+    ServerAction-->>SubscribeBtn: {success: true, sessionUrl}
+
+    SubscribeBtn->>Browser: window.location.href = sessionUrl
+    Browser->>StripeCheckout: Redirect to Stripe
+    StripeCheckout-->>User: Show payment form
+
+    User->>StripeCheckout: Enter credit card details
+    User->>StripeCheckout: Click "Pay $10.00"
+
+    StripeCheckout->>StripeCheckout: Validate card with bank
+    StripeCheckout->>StripeCheckout: Create Customer & Subscription
+    StripeCheckout->>StripeCheckout: Charge $10.00
+
+    StripeCheckout->>Browser: Redirect to /dashboard?status=success
+    Browser->>Dashboard: Navigate back
+    Dashboard-->>User: Show "Processing..." message
+
+    par Async Webhook (1-5 seconds later)
+        StripeWebhook->>WebhookAPI: POST /api/webhooks/stripe<br/>Event: checkout.session.completed
+        WebhookAPI->>WebhookAPI: Verify webhook signature
+        WebhookAPI->>WebhookAPI: Parse event data
+        WebhookAPI->>ProfilesDB: UPDATE profiles SET<br/>subscription_status='active',<br/>stripe_customer_id='cus_...',<br/>subscription_id='sub_...'
+        ProfilesDB-->>WebhookAPI: Success
+        WebhookAPI-->>StripeWebhook: 200 OK
+    end
+
+    User->>Dashboard: Refresh page
+    Dashboard->>Supabase: Check subscription status
+    Supabase-->>Dashboard: subscription_status='active'
+    Dashboard-->>User: Show "Subscription Active!" banner
+
+    Note over User,ProfilesDB: Webhooks may take 1-5 seconds<br/>Stripe retries for 72 hours if webhook fails
+        </pre>
+        <div class="mermaid">
+sequenceDiagram
+    actor User as Coach
+    participant Dashboard
+    participant SubscribeBtn as Subscribe Button
+    participant ServerAction as stripe-actions.ts<br/>createCheckoutSession()
+    participant Supabase as Supabase DB
+    participant StripeAPI as Stripe API
+    participant StripeCheckout as Stripe Checkout<br/>(External)
+    participant StripeWebhook as Stripe Servers
+    participant WebhookAPI as /api/webhooks/stripe
+    participant ProfilesDB as profiles table
+
+    User->>Dashboard: View trial banner
+    Dashboard-->>User: Show "Subscribe" button
+    User->>SubscribeBtn: Click "Subscribe Now"
+
+    SubscribeBtn->>ServerAction: Call createCheckoutSession(priceId)
+
+    rect rgb(200, 220, 240)
+        Note over ServerAction,Supabase: Server-Side Verification
+        ServerAction->>Supabase: Verify user authentication
+        Supabase-->>ServerAction: User authenticated
+        ServerAction->>Supabase: Fetch profile (check existing subscription)
+        Supabase-->>ServerAction: Profile data
+        ServerAction->>ServerAction: Verify not already subscribed
+    end
+
+    ServerAction->>StripeAPI: Create checkout session<br/>{customer_email, line_items, metadata}
+    StripeAPI->>StripeAPI: Generate session ID
+    StripeAPI-->>ServerAction: {id, url: "https://checkout.stripe.com/..."}
+    ServerAction-->>SubscribeBtn: {success: true, sessionUrl}
+
+    SubscribeBtn->>Browser: window.location.href = sessionUrl
+    Browser->>StripeCheckout: Redirect to Stripe
+    StripeCheckout-->>User: Show payment form
+
+    User->>StripeCheckout: Enter credit card details
+    User->>StripeCheckout: Click "Pay $10.00"
+
+    StripeCheckout->>StripeCheckout: Validate card with bank
+    StripeCheckout->>StripeCheckout: Create Customer & Subscription
+    StripeCheckout->>StripeCheckout: Charge $10.00
+
+    StripeCheckout->>Browser: Redirect to /dashboard?status=success
+    Browser->>Dashboard: Navigate back
+    Dashboard-->>User: Show "Processing..." message
+
+    par Async Webhook (1-5 seconds later)
+        StripeWebhook->>WebhookAPI: POST /api/webhooks/stripe<br/>Event: checkout.session.completed
+        WebhookAPI->>WebhookAPI: Verify webhook signature
+        WebhookAPI->>WebhookAPI: Parse event data
+        WebhookAPI->>ProfilesDB: UPDATE profiles SET<br/>subscription_status='active',<br/>stripe_customer_id='cus_...',<br/>subscription_id='sub_...'
+        ProfilesDB-->>WebhookAPI: Success
+        WebhookAPI-->>StripeWebhook: 200 OK
+    end
+
+    User->>Dashboard: Refresh page
+    Dashboard->>Supabase: Check subscription status
+    Supabase-->>Dashboard: subscription_status='active'
+    Dashboard-->>User: Show "Subscription Active!" banner
+
+    Note over User,ProfilesDB: Webhooks may take 1-5 seconds<br/>Stripe retries for 72 hours if webhook fails
+        </div>
+    </div>
+
+    <h2>4. Database Schema & Relationships</h2>
+    <div class="diagram-container">
+        <div class="export-buttons">
+            <button onclick="copyToClipboard('diagram4')">📋 Copy Mermaid Code</button>
+            <button class="secondary" onclick="window.open('https://mermaid.live')">🔗 Open in Mermaid Live</button>
+        </div>
+        <pre id="diagram4" style="display:none;">
+erDiagram
+    AUTH_USERS ||--|| PROFILES : "1:1"
+    PROFILES ||--o{ CLIENTS : "1:many (coach has many clients)"
+    PROFILES ||--o{ LESSONS : "1:many (coach has many lessons)"
+    PROFILES ||--o{ INVOICES : "1:many (coach has many invoices)"
+    CLIENTS ||--o{ LESSONS : "1:many (client has many lessons)"
+    CLIENTS ||--o{ INVOICES : "1:many (client has many invoices)"
+    INVOICES ||--o{ INVOICE_LINE_ITEMS : "1:many (invoice has many line items)"
+    LESSONS ||--|| INVOICE_LINE_ITEMS : "1:1 (lesson billed once)"
+
+    AUTH_USERS {
+        uuid id PK "User ID"
+        varchar email UK "Email address"
+        varchar encrypted_password "Bcrypt hash"
+        timestamp email_confirmed_at "Email verification"
+        timestamp created_at "Account creation"
+        timestamp last_sign_in_at "Last login"
+    }
+
+    PROFILES {
+        uuid id PK,FK "References auth.users.id"
+        varchar email "Cached email"
+        varchar stripe_customer_id "Stripe customer (cus_...)"
+        varchar subscription_id "Stripe subscription (sub_...)"
+        varchar subscription_status "trial|active|canceled|past_due"
+        timestamp trial_ends_at "Trial expiration (NULL if subscribed)"
+        varchar venmo_link "Venmo profile URL"
+        varchar zelle_link "Zelle email/phone"
+        varchar preferred_payment_method "venmo|zelle"
+        timestamp created_at "Profile creation"
+        timestamp updated_at "Last update"
+    }
+
+    CLIENTS {
+        uuid id PK "Client ID"
+        uuid coach_id FK "References auth.users.id"
+        varchar athlete_name "Skater name"
+        varchar parent_email "Parent email (invoices)"
+        varchar parent_phone "Parent phone (SMS)"
+        numeric hourly_rate "Coach rate ($75.00)"
+        text notes "Private coach notes"
+        varchar status "active|archived (soft delete)"
+        timestamp created_at "Client added date"
+        timestamp updated_at "Last update"
+    }
+
+    LESSONS {
+        uuid id PK "Lesson ID"
+        uuid coach_id FK "References auth.users.id"
+        uuid client_id FK "References clients.id"
+        timestamp scheduled_at "Lesson date/time"
+        integer duration_minutes "Length (30,45,60,90)"
+        varchar status "scheduled|completed|canceled|no_show"
+        text notes "Lesson notes"
+        timestamp created_at "Scheduled date"
+        timestamp updated_at "Last update"
+    }
+
+    INVOICES {
+        uuid id PK "Invoice ID"
+        uuid coach_id FK "References auth.users.id"
+        uuid client_id FK "References clients.id"
+        varchar invoice_number UK "INV-2025-001"
+        numeric total_amount "Total ($300.00)"
+        varchar status "draft|sent|paid|overdue"
+        text payment_link "Venmo/Zelle deep link"
+        timestamp sent_at "Email sent date"
+        timestamp paid_at "Payment received date"
+        timestamp due_at "Due date"
+        timestamp created_at "Invoice created"
+        timestamp updated_at "Last update"
+    }
+
+    INVOICE_LINE_ITEMS {
+        uuid id PK "Line item ID"
+        uuid invoice_id FK "References invoices.id"
+        uuid lesson_id FK "References lessons.id (nullable)"
+        text description "1-hour lesson on Nov 15"
+        numeric quantity "Usually 1"
+        numeric unit_price "Hourly rate ($75.00)"
+        numeric total_price "quantity × unit_price"
+        timestamp created_at "Line item added"
+    }
+        </pre>
+        <div class="mermaid">
+erDiagram
+    AUTH_USERS ||--|| PROFILES : "1:1"
+    PROFILES ||--o{ CLIENTS : "1:many (coach has many clients)"
+    PROFILES ||--o{ LESSONS : "1:many (coach has many lessons)"
+    PROFILES ||--o{ INVOICES : "1:many (coach has many invoices)"
+    CLIENTS ||--o{ LESSONS : "1:many (client has many lessons)"
+    CLIENTS ||--o{ INVOICES : "1:many (client has many invoices)"
+    INVOICES ||--o{ INVOICE_LINE_ITEMS : "1:many (invoice has many line items)"
+    LESSONS ||--|| INVOICE_LINE_ITEMS : "1:1 (lesson billed once)"
+
+    AUTH_USERS {
+        uuid id PK "User ID"
+        varchar email UK "Email address"
+        varchar encrypted_password "Bcrypt hash"
+        timestamp email_confirmed_at "Email verification"
+        timestamp created_at "Account creation"
+        timestamp last_sign_in_at "Last login"
+    }
+
+    PROFILES {
+        uuid id PK,FK "References auth.users.id"
+        varchar email "Cached email"
+        varchar stripe_customer_id "Stripe customer (cus_...)"
+        varchar subscription_id "Stripe subscription (sub_...)"
+        varchar subscription_status "trial|active|canceled|past_due"
+        timestamp trial_ends_at "Trial expiration (NULL if subscribed)"
+        varchar venmo_link "Venmo profile URL"
+        varchar zelle_link "Zelle email/phone"
+        varchar preferred_payment_method "venmo|zelle"
+        timestamp created_at "Profile creation"
+        timestamp updated_at "Last update"
+    }
+
+    CLIENTS {
+        uuid id PK "Client ID"
+        uuid coach_id FK "References auth.users.id"
+        varchar athlete_name "Skater name"
+        varchar parent_email "Parent email (invoices)"
+        varchar parent_phone "Parent phone (SMS)"
+        numeric hourly_rate "Coach rate ($75.00)"
+        text notes "Private coach notes"
+        varchar status "active|archived (soft delete)"
+        timestamp created_at "Client added date"
+        timestamp updated_at "Last update"
+    }
+
+    LESSONS {
+        uuid id PK "Lesson ID"
+        uuid coach_id FK "References auth.users.id"
+        uuid client_id FK "References clients.id"
+        timestamp scheduled_at "Lesson date/time"
+        integer duration_minutes "Length (30,45,60,90)"
+        varchar status "scheduled|completed|canceled|no_show"
+        text notes "Lesson notes"
+        timestamp created_at "Scheduled date"
+        timestamp updated_at "Last update"
+    }
+
+    INVOICES {
+        uuid id PK "Invoice ID"
+        uuid coach_id FK "References auth.users.id"
+        uuid client_id FK "References clients.id"
+        varchar invoice_number UK "INV-2025-001"
+        numeric total_amount "Total ($300.00)"
+        varchar status "draft|sent|paid|overdue"
+        text payment_link "Venmo/Zelle deep link"
+        timestamp sent_at "Email sent date"
+        timestamp paid_at "Payment received date"
+        timestamp due_at "Due date"
+        timestamp created_at "Invoice created"
+        timestamp updated_at "Last update"
+    }
+
+    INVOICE_LINE_ITEMS {
+        uuid id PK "Line item ID"
+        uuid invoice_id FK "References invoices.id"
+        uuid lesson_id FK "References lessons.id (nullable)"
+        text description "1-hour lesson on Nov 15"
+        numeric quantity "Usually 1"
+        numeric unit_price "Hourly rate ($75.00)"
+        numeric total_price "quantity × unit_price"
+        timestamp created_at "Line item added"
+    }
+        </div>
+    </div>
+
+    <script>
+        function copyToClipboard(elementId) {
+            const text = document.getElementById(elementId).textContent;
+            navigator.clipboard.writeText(text.trim()).then(() => {
+                alert('Mermaid code copied to clipboard! Paste it at https://mermaid.live to edit or export.');
+            });
+        }
+    </script>
+</body>
+</html>

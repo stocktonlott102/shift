@@ -30,6 +30,80 @@
     --scheduler-hour-border: 1px solid #e5e7eb;
   }
 
+  /* Calendar Controls */
+  .calendar-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .date-header {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0;
+  }
+
+  .today-button, .nav-button {
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    color: #374151;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+
+  .nav-button {
+    padding: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .today-button:hover, .nav-button:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
+  }
+
+  .view-switcher {
+    display: flex;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+
+  .view-button {
+    background: transparent;
+    border: none;
+    color: #6b7280;
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+    cursor: pointer;
+    border-right: 1px solid #e5e7eb;
+  }
+
+  .view-button:last-child {
+    border-right: none;
+  }
+
+  .view-button:hover {
+    background: #f9fafb;
+  }
+
+  .view-button.active {
+    background: #3B82F6;
+    color: #ffffff;
+  }
+
   .scheduler {
     font-family: inherit;
   }
@@ -58,10 +132,11 @@
     height: var(--scheduler-hour-height);
     display: flex;
     align-items: start;
-    padding-top: 6px;
-    padding-left: 8px;
+    justify-content: center;
+    padding-right: 0;
     color: var(--foreground);
     font-size: 0.875rem;
+    transform: translateY(-8px);
   }
 
   .scheduler-event {
@@ -97,5 +172,36 @@
     }
     .scheduler-grid { background: #0b1015; }
     .time-label { color: #e5e7eb; }
+    .date-header { color: #f3f4f6; }
+
+    .today-button, .nav-button {
+      background: #374151;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+
+    .today-button:hover, .nav-button:hover {
+      background: #4b5563;
+      border-color: #6b7280;
+    }
+
+    .view-switcher {
+      background: #374151;
+      border-color: #4b5563;
+    }
+
+    .view-button {
+      color: #9ca3af;
+      border-right-color: #4b5563;
+    }
+
+    .view-button:hover {
+      background: #4b5563;
+    }
+
+    .view-button.active {
+      background: #3B82F6;
+      color: #ffffff;
+    }
   }
 

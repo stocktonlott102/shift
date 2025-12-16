@@ -134,7 +134,7 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
   }
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header with prominent Back Button */}
       <div className="mb-6">
         {/* Back to Dashboard Button - Prominent Navigation */}
@@ -155,14 +155,9 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
 
         {/* Title and Book Button */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              Lesson Calendar
-            </h1>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              Schedule and manage your coaching sessions
-            </p>
-          </div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Lesson Calendar
+          </h1>
 
           {/* Book Lesson Button */}
           <button
