@@ -59,6 +59,32 @@ function isSameDay(date1: Date, date2: Date): boolean {
          date1.getDate() === date2.getDate();
 }
 
+function getMonthGrid(date: Date): Date[] {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  
+  // First day of the month
+  const firstDay = new Date(year, month, 1);
+  const firstDayOfWeek = firstDay.getDay(); // 0 = Sunday
+  
+  // Last day of the month
+  const lastDay = new Date(year, month + 1, 0);
+  
+  // Start from the first Sunday (or Monday) of the grid
+  const gridStart = new Date(firstDay);
+  gridStart.setDate(firstDay.getDate() - firstDayOfWeek);
+  
+  // Generate 42 days (6 weeks)
+  const grid: Date[] = [];
+  for (let i = 0; i < 42; i++) {
+    const day = new Date(gridStart);
+    day.setDate(gridStart.getDate() + i);
+    grid.push(day);
+  }
+  
+  return grid;
+}
+
 function formatDateHeader(date: Date, view: CalendarView): string {
   if (view === 'day') {
     return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
@@ -92,6 +118,27 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
   // Week view specific data
   const weekStart = useMemo(() => getWeekStart(currentDate), [currentDate]);
   const weekDays = useMemo(() => getWeekDays(weekStart), [weekStart]);
+
+  // Month view specific data
+  const monthGrid = useMemo(() => getMonthGrid(currentDate), [currentDate]);
+  const monthSessionCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    monthGrid.forEach(day => {
+      const dayKey = day.toDateString();
+      const dayStart = new Date(day);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(day);
+      dayEnd.setHours(23, 59, 59, 999);
+      
+      const count = lessons.filter(l => {
+        const s = new Date(l.start_time);
+        return s >= dayStart && s <= dayEnd;
+      }).length;
+      
+      counts.set(dayKey, count);
+    });
+    return counts;
+  }, [monthGrid, lessons]);
 
   const { start: visibleStart, end: visibleEnd } = useMemo(() => buildVisibleRange(currentDate), [currentDate]);
 
@@ -255,6 +302,11 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
     setCurrentDate(new Date());
   };
 
+  const handleDateClick = (date: Date) => {
+    setCurrentDate(date);
+    setView('day');
+  };
+
   return (
     <div className="flex flex-col h-full w-full">
       {/* Control Panel */}
@@ -315,7 +367,53 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
 
       {/* Calendar Grid */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        {view === 'week' ? (
+        {view === 'month' ? (
+          // Month View
+          <div className="flex flex-col h-full overflow-auto p-4">
+            {/* Day of Week Header */}
+            <div className="grid grid-cols-7 gap-1 mb-2">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                <div key={day} className="text-center text-xs sm:text-sm font-semibold text-gray-600 dark:text-gray-400 py-2">
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            {/* Calendar Grid (6 rows x 7 days = 42 cells) */}
+            <div className="grid grid-cols-7 gap-1 flex-1">
+              {monthGrid.map((day, idx) => {
+                const isToday = isSameDay(day, now);
+                const isCurrentMonth = day.getMonth() === currentDate.getMonth();
+                const sessionCount = monthSessionCounts.get(day.toDateString()) || 0;
+                
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => handleDateClick(day)}
+                    className={`
+                      relative border rounded-lg p-2 cursor-pointer transition-all hover:border-indigo-500
+                      ${isToday ? 'border-2 border-indigo-600 dark:border-indigo-400 bg-indigo-50 dark:bg-indigo-900/20' : 'border-gray-200 dark:border-gray-700'}
+                      ${!isCurrentMonth ? 'opacity-40' : ''}
+                      ${sessionCount > 0 ? 'bg-gray-50 dark:bg-gray-800' : 'bg-white dark:bg-gray-900'}
+                    `}
+                  >
+                    {/* Date number */}
+                    <div className={`text-sm sm:text-base font-semibold ${isToday ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-900 dark:text-white'}`}>
+                      {day.getDate()}
+                    </div>
+                    
+                    {/* Session count indicator */}
+                    {sessionCount > 0 && (
+                      <div className="absolute bottom-1 right-1 text-xs font-medium px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300">
+                        {sessionCount}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : view === 'week' ? (
           // Week View
           <div className="flex flex-col h-full">
             {/* Week Grid with Header */}
