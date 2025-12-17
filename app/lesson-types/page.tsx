@@ -1,18 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient as createBrowserClient } from '@/lib/supabase/client';
 import Navigation from '@/components/Navigation';
-
-type LessonType = {
-  id: string;
-  coach_id: string;
-  name: string;
-  hourly_rate: number;
-  color: string;
-  title_template: string;
-  is_active: boolean;
-};
+import {
+  createLessonType,
+  updateLessonType,
+  deleteLessonType,
+  getLessonTypes,
+} from '@/app/actions/lesson-type-actions';
+import type { LessonType } from '@/lib/types/lesson-type';
 
 export default function LessonTypesPage() {
   const [types, setTypes] = useState<LessonType[]>([]);
@@ -30,22 +26,11 @@ export default function LessonTypesPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const supabase = createBrowserClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          setError('Not logged in');
-          setLoading(false);
-          return;
-        }
-        const { data, error } = await supabase
-          .from('lesson_types')
-          .select('*')
-          .eq('coach_id', user.id)
-          .order('name');
-        if (error) {
-          setError(error.message);
+        const result = await getLessonTypes();
+        if (result.success && result.data) {
+          setTypes(result.data);
         } else {
-          setTypes((data || []) as LessonType[]);
+          setError(result.error || 'Failed to load lesson types');
         }
       } catch (e: any) {
         setError(e.message || 'Unexpected error');
@@ -88,62 +73,70 @@ export default function LessonTypesPage() {
     setError(null);
     setSaving(true);
     try {
-      const supabase = createBrowserClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setError('Not logged in');
+      let result;
+      if (editingId) {
+        result = await updateLessonType(editingId, {
+          name: name.trim(),
+          hourly_rate: rateNum,
+          color,
+          title_template: titleTemplate || defaultTemplate,
+        });
+      } else {
+        result = await createLessonType({
+          name: name.trim(),
+          hourly_rate: rateNum,
+          color,
+          title_template: titleTemplate || defaultTemplate,
+        });
+      }
+
+      if (!result.success) {
+        setError(result.error || 'Failed to save lesson type');
         setSaving(false);
         return;
       }
-      if (editingId) {
-        const { data, error } = await supabase
-          .from('lesson_types')
-          .update({
-            name: name.trim(),
-            hourly_rate: rateNum,
-            color,
-            title_template: titleTemplate || defaultTemplate,
-          })
-          .eq('id', editingId)
-          .eq('coach_id', user.id)
-          .select()
-          .single();
-        if (error) {
-          setError(error.message);
-          setSaving(false);
-          return;
-        }
-        if (data) {
-          setTypes((prev) => prev.map((t) => (t.id === editingId ? (data as LessonType) : t)).sort((a, b) => a.name.localeCompare(b.name)));
-        }
-      } else {
-        const { data, error } = await supabase
-          .from('lesson_types')
-          .insert({
-            coach_id: user.id,
-            name: name.trim(),
-            hourly_rate: rateNum,
-            color,
-            title_template: titleTemplate || defaultTemplate,
-            is_active: true,
-          })
-          .select()
-          .single();
-        if (error) {
-          setError(error.message);
-          setSaving(false);
-          return;
-        }
-        if (data) {
-          setTypes((prev) => [...prev, data as LessonType].sort((a, b) => a.name.localeCompare(b.name)));
+
+      if (result.data) {
+        if (editingId) {
+          setTypes((prev) =>
+            prev
+              .map((t) => (t.id === editingId ? result.data! : t))
+              .sort((a, b) => a.name.localeCompare(b.name))
+          );
+        } else {
+          setTypes((prev) =>
+            [...prev, result.data!].sort((a, b) => a.name.localeCompare(b.name))
+          );
         }
       }
+
       setName('');
       setHourlyRate('');
       setColor('#3B82F6');
       setTitleTemplate(defaultTemplate);
       setEditingId(null);
       setIsModalOpen(false);
+    } catch (e: any) {
+      setError(e.message || 'Unexpected error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!window.confirm('Are you sure you want to delete this lesson type?')) {
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const result = await deleteLessonType(id);
+      if (!result.success) {
+        setError(result.error || 'Failed to delete lesson type');
+        setSaving(false);
+        return;
+      }
+      setTypes((prev) => prev.filter((t) => t.id !== id));
     } catch (e: any) {
       setError(e.message || 'Unexpected error');
     } finally {
@@ -194,6 +187,14 @@ export default function LessonTypesPage() {
                       className="text-indigo-600 dark:text-indigo-400 hover:underline"
                     >
                       Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(t.id)}
+                      disabled={saving}
+                      className="text-red-600 dark:text-red-400 hover:underline disabled:opacity-50"
+                    >
+                      Delete
                     </button>
                     </li>
                     );
