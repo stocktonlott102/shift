@@ -230,6 +230,34 @@ export default async function DashboardPage() {
               Pending payments
             </p>
           </div>
+
+          {/* Lesson Types Card */}
+          <Link
+            href="/lesson-types"
+            className="block bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-all duration-200 transform hover:scale-105 cursor-pointer"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Manage Lesson Types
+              </h3>
+              <svg
+                className="w-8 h-8 text-indigo-600 dark:text-indigo-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 6v12m6-6H6"
+                />
+              </svg>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Create, edit, and organize lesson types
+            </p>
+          </Link>
         </div>
 
         {/* Quick Actions */}

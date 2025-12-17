@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
-import { createLesson } from '@/app/actions/lesson-actions';
+import { useEffect, useMemo, useState, FormEvent } from 'react';
+import { createLesson, createLessonWithParticipants } from '@/app/actions/lesson-actions';
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/lib/constants/messages';
 import type { Client } from '@/lib/types/client';
+import ClientMultiPicker from './ClientMultiPicker';
+import { createClient as createBrowserClient } from '@/lib/supabase/client';
+import type { LessonType } from '@/lib/supabase/types';
 
 interface BookLessonFormProps {
   clients: Client[];
@@ -31,7 +34,7 @@ export default function BookLessonForm({
   defaultEndTime,
 }: BookLessonFormProps) {
   // Form state
-  const [clientId, setClientId] = useState('');
+  const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [startTime, setStartTime] = useState(
@@ -44,6 +47,55 @@ export default function BookLessonForm({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [lessonTypes, setLessonTypes] = useState<LessonType[]>([]);
+  const [selectedLessonTypeId, setSelectedLessonTypeId] = useState<string>('');
+  const [customRate, setCustomRate] = useState<string>('');
+
+  useEffect(() => {
+    const loadTypes = async () => {
+      try {
+        const supabase = createBrowserClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data, error } = await supabase
+          .from('lesson_types')
+          .select('*')
+          .eq('coach_id', user.id)
+          .eq('is_active', true)
+          .order('name');
+        if (!error && data) setLessonTypes(data as LessonType[]);
+      } catch (e) {
+        // silent fail
+      }
+    };
+    loadTypes();
+  }, []);
+
+  const durationHours = useMemo(() => {
+    if (!startTime || !endTime) return 0;
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    return Math.max(0, (end.getTime() - start.getTime()) / (1000 * 60 * 60));
+  }, [startTime, endTime]);
+
+  const effectiveRate = useMemo(() => {
+    if (selectedLessonTypeId === 'custom') {
+      return Number(customRate) || 0;
+    }
+    const lt = lessonTypes.find((t) => t.id === selectedLessonTypeId);
+    return lt ? Number(lt.hourly_rate) : 0;
+  }, [selectedLessonTypeId, customRate, lessonTypes]);
+
+  const totalAmount = useMemo(() => {
+    return Math.round(durationHours * effectiveRate * 100) / 100;
+  }, [durationHours, effectiveRate]);
+
+  const perClientAmount = useMemo(() => {
+    const count = selectedClientIds.length || 1;
+    return Math.round((totalAmount / count) * 100) / 100;
+  }, [totalAmount, selectedClientIds.length]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -52,7 +104,7 @@ export default function BookLessonForm({
     setIsLoading(true);
 
     // Validation
-    if (!clientId) {
+    if (selectedClientIds.length === 0) {
       setError(ERROR_MESSAGES.LESSON.CLIENT_REQUIRED);
       setIsLoading(false);
       return;
@@ -87,14 +139,36 @@ export default function BookLessonForm({
     }
 
     try {
-      const result = await createLesson({
-        client_id: clientId,
-        title: title.trim(),
-        description: description.trim() || undefined,
-        start_time: start.toISOString(),
-        end_time: end.toISOString(),
-        location: location.trim() || undefined,
-      });
+      let result;
+      if (selectedClientIds.length === 1) {
+        // Backward-compatible single-client booking
+        result = await createLesson({
+          client_id: selectedClientIds[0],
+          title: title.trim(),
+          description: description.trim() || undefined,
+          start_time: start.toISOString(),
+          end_time: end.toISOString(),
+          location: location.trim() || undefined,
+        });
+      } else {
+        // Multi-client booking with lesson type or custom rate
+        const rate = effectiveRate;
+        if (!rate || rate <= 0) {
+          setError(ERROR_MESSAGES.LESSON.INVALID_RATE);
+          setIsLoading(false);
+          return;
+        }
+        result = await createLessonWithParticipants({
+          title: title.trim(),
+          description: description.trim() || undefined,
+          start_time: start.toISOString(),
+          end_time: end.toISOString(),
+          location: location.trim() || undefined,
+          client_ids: selectedClientIds,
+          lesson_type_id: selectedLessonTypeId && selectedLessonTypeId !== 'custom' ? selectedLessonTypeId : undefined,
+          custom_hourly_rate: selectedLessonTypeId === 'custom' ? rate : undefined,
+        });
+      }
 
       if (!result.success) {
         setError(result.error || ERROR_MESSAGES.LESSON.CREATE_FAILED);
@@ -105,12 +179,14 @@ export default function BookLessonForm({
       setSuccessMessage(SUCCESS_MESSAGES.LESSON.CREATED);
 
       // Reset form
-      setClientId('');
+      setSelectedClientIds([]);
       setTitle('');
       setDescription('');
       setStartTime('');
       setEndTime('');
       setLocation('');
+      setSelectedLessonTypeId('');
+      setCustomRate('');
 
       setTimeout(() => onSuccess?.(), 1500);
     } catch (err) {
@@ -141,32 +217,13 @@ export default function BookLessonForm({
           </div>
         )}
 
-        {/* Client Selection */}
-        <div>
-          <label htmlFor="clientId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Select Client <span className="text-red-500">*</span>
-          </label>
-          <select
-            id="clientId"
-            required
-            value={clientId}
-            onChange={(e) => setClientId(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-            disabled={isLoading}
-          >
-            <option value="">Choose a client...</option>
-            {clients.map((client) => (
-              <option key={client.id} value={client.id}>
-                {client.athlete_name} - ${client.hourly_rate}/hr
-              </option>
-            ))}
-          </select>
-          {clients.length === 0 && (
-            <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-              No clients found. Please add a client first.
-            </p>
-          )}
-        </div>
+        {/* Client Selection (chips + searchable panel) */}
+        <ClientMultiPicker
+          clients={clients}
+          value={selectedClientIds}
+          onChange={setSelectedClientIds}
+          disabled={isLoading}
+        />
 
         {/* Lesson Title */}
         <div>
@@ -183,6 +240,47 @@ export default function BookLessonForm({
             placeholder="e.g., Private Lesson, Jump Technique"
             disabled={isLoading}
           />
+        </div>
+
+        {/* Lesson Type */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Lesson Type
+          </label>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <select
+              value={selectedLessonTypeId}
+              onChange={(e) => setSelectedLessonTypeId(e.target.value)}
+              className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              disabled={isLoading}
+            >
+              <option value="">Choose a type…</option>
+              {lessonTypes.map((lt) => (
+                <option key={lt.id} value={lt.id}>
+                  {lt.name} - ${Number(lt.hourly_rate)}/hr
+                </option>
+              ))}
+              <option value="custom">Custom</option>
+            </select>
+            {selectedLessonTypeId === 'custom' && (
+              <input
+                type="number"
+                min={1}
+                max={999}
+                step="0.01"
+                value={customRate}
+                onChange={(e) => setCustomRate(e.target.value)}
+                placeholder="Hourly rate"
+                className="sm:w-40 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                disabled={isLoading}
+              />
+            )}
+          </div>
+          {selectedClientIds.length > 0 && durationHours > 0 && effectiveRate > 0 && (
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+              Total: ${totalAmount} — Split: ${perClientAmount} per client
+            </p>
+          )}
         </div>
 
         {/* Start Time */}

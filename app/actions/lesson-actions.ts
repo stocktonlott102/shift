@@ -10,6 +10,19 @@ import type {
   Lesson,
   LessonWithClient,
 } from '@/lib/types/lesson';
+import type { LessonType } from '@/lib/supabase/types';
+
+type CreateMultiClientLessonInput = {
+  title: string;
+  description?: string | null;
+  start_time: string;
+  end_time: string;
+  location?: string | null;
+  client_ids: string[];
+  lesson_type_id?: string; // when using a saved lesson type
+  custom_hourly_rate?: number; // used when "Custom" type selected
+  rate_at_booking?: number; // optional override, defaults from type/custom
+};
 
 /**
  * Server Action: Create a new lesson and automatically generate an invoice
@@ -164,6 +177,148 @@ export async function createLesson(formData: CreateLessonData) {
     };
   } catch (error: any) {
     console.error('Unexpected error creating lesson:', error);
+    return {
+      success: false,
+      error: `${ERROR_MESSAGES.GENERIC.UNEXPECTED_ERROR}: ${error.message || ''}`,
+    };
+  }
+}
+
+/**
+ * Server Action: Create a multi-client lesson using Lesson Types
+ *
+ * Creates a lesson (with optional `lesson_type_id`), snapshots `rate_at_booking`,
+ * and inserts rows into `lesson_participants` with evenly split `amount_owed`.
+ *
+ * Notes:
+ * - Does not create invoices yet; Outstanding view will use `lesson_participants`.
+ * - Requires migration adding `lesson_type_id` and `lesson_participants` to be applied.
+ */
+export async function createLessonWithParticipants(input: CreateMultiClientLessonInput) {
+  try {
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return { success: false, error: ERROR_MESSAGES.AUTH.NOT_LOGGED_IN };
+    }
+
+    // Basic validation
+    if (!input.start_time || !input.end_time || !input.title || !input.client_ids?.length) {
+      return { success: false, error: ERROR_MESSAGES.LESSON.REQUIRED_FIELDS };
+    }
+
+    const startTime = new Date(input.start_time);
+    const endTime = new Date(input.end_time);
+    if (endTime <= startTime) {
+      return { success: false, error: ERROR_MESSAGES.LESSON.INVALID_TIME_RANGE };
+    }
+
+    const durationMs = endTime.getTime() - startTime.getTime();
+    const durationMinutes = durationMs / (1000 * 60);
+    if (durationMinutes < 15) {
+      return { success: false, error: ERROR_MESSAGES.LESSON.INVALID_DURATION };
+    }
+
+    // Ensure all clients belong to this coach
+    const { data: clients, error: clientsError } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('coach_id', user.id)
+      .in('id', input.client_ids);
+
+    if (clientsError) {
+      return { success: false, error: ERROR_MESSAGES.CLIENT.FETCH_FAILED };
+    }
+
+    const validClientIds = (clients || []).map((c: any) => c.id);
+    if (validClientIds.length !== input.client_ids.length) {
+      return { success: false, error: ERROR_MESSAGES.CLIENT.NOT_FOUND };
+    }
+
+    // Determine hourly rate from lesson type or custom
+    let hourlyRate: number | null = null;
+    let lessonTypeId: string | null = input.lesson_type_id || null;
+
+    if (lessonTypeId) {
+      const { data: lt, error: ltError } = await supabase
+        .from('lesson_types')
+        .select('id, hourly_rate, is_active, coach_id')
+        .eq('id', lessonTypeId)
+        .single();
+
+      if (ltError || !lt || lt.coach_id !== user.id || !lt.is_active) {
+        return { success: false, error: ERROR_MESSAGES.LESSON.TYPE_NOT_FOUND };
+      }
+      hourlyRate = Number(lt.hourly_rate);
+    } else if (typeof input.custom_hourly_rate === 'number') {
+      hourlyRate = input.custom_hourly_rate;
+      if (hourlyRate <= 0 || hourlyRate > 999) {
+        return { success: false, error: ERROR_MESSAGES.LESSON.INVALID_RATE };
+      }
+    } else {
+      return { success: false, error: ERROR_MESSAGES.LESSON.INVALID_RATE };
+    }
+
+    const durationHours = durationMs / (1000 * 60 * 60);
+    const totalAmount = Math.round(durationHours * hourlyRate * 100) / 100;
+    const splitAmount = Math.round((totalAmount / input.client_ids.length) * 100) / 100;
+
+    // Create the lesson
+    const { data: lesson, error: lessonError } = await supabase
+      .from('lessons')
+      .insert({
+        coach_id: user.id,
+        // keep legacy client_id null for multi-client
+        client_id: null,
+        title: input.title,
+        description: input.description || null,
+        start_time: input.start_time,
+        end_time: input.end_time,
+        location: input.location || null,
+        rate_at_booking: input.rate_at_booking ?? hourlyRate,
+        lesson_type_id: lessonTypeId,
+        status: 'Scheduled',
+      })
+      .select()
+      .single();
+
+    if (lessonError || !lesson) {
+      console.error('Database error creating multi-client lesson:', lessonError);
+      return {
+        success: false,
+        error: `${ERROR_MESSAGES.LESSON.CREATE_FAILED}: ${lessonError?.message}`,
+      };
+    }
+
+    // Insert participants in a single batch
+    const participantsRows = input.client_ids.map((cid) => ({
+      lesson_id: lesson.id,
+      client_id: cid,
+      amount_owed: splitAmount,
+    }));
+
+    const { error: lpError } = await supabase.from('lesson_participants').insert(participantsRows);
+    if (lpError) {
+      console.error('Error inserting lesson participants:', lpError);
+      return { success: false, error: ERROR_MESSAGES.LESSON.PARTICIPANTS_CREATE_FAILED };
+    }
+
+    // Revalidate relevant pages
+    revalidatePath('/calendar');
+    revalidatePath('/dashboard');
+
+    return {
+      success: true,
+      data: { lesson },
+      message: SUCCESS_MESSAGES.LESSON.CREATED,
+    };
+  } catch (error: any) {
+    console.error('Unexpected error creating multi-client lesson:', error);
     return {
       success: false,
       error: `${ERROR_MESSAGES.GENERIC.UNEXPECTED_ERROR}: ${error.message || ''}`,
