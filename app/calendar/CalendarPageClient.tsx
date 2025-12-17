@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Calendar from '@/components/Calendar';
 import BookLessonForm from '@/components/BookLessonForm';
+import EditLessonForm from '@/components/EditLessonForm';
 import Navigation from '@/components/Navigation';
 import { getLessons } from '@/app/actions/lesson-actions';
 import { getClients } from '@/app/actions/client-actions';
@@ -24,7 +25,9 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
 
   // Modal state
   const [showBookingForm, setShowBookingForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<{ start: Date; end: Date } | null>(null);
+  const [selectedLesson, setSelectedLesson] = useState<LessonWithClient | null>(null);
 
   // Fetch data on mount
   useEffect(() => {
@@ -69,8 +72,8 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
 
   // Handle selecting an existing lesson
   const handleSelectEvent = (event: { id: string; resource: LessonWithClient }) => {
-    // Navigate to lesson detail page
-    router.push(`/lessons/${event.id}`);
+    setSelectedLesson(event.resource);
+    setShowEditForm(true);
   };
 
   // Handle successful lesson booking
@@ -90,6 +93,25 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
   const handleCancelBooking = () => {
     setShowBookingForm(false);
     setSelectedSlot(null);
+  };
+
+  // Handle successful lesson edit
+  const handleEditSuccess = async () => {
+    setShowEditForm(false);
+    setSelectedLesson(null);
+
+    // Re-fetch lessons
+    const result = await getLessons();
+    if (result.success) {
+      setLessons(result.data);
+    }
+    router.refresh();
+  };
+
+  // Handle cancel edit
+  const handleCancelEdit = () => {
+    setShowEditForm(false);
+    setSelectedLesson(null);
   };
 
   // Loading state
@@ -175,6 +197,20 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
               onCancel={handleCancelBooking}
               defaultStartTime={selectedSlot?.start}
               defaultEndTime={selectedSlot?.end}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Edit Lesson Form Modal */}
+      {showEditForm && selectedLesson && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="w-full max-w-2xl">
+            <EditLessonForm
+              lesson={selectedLesson}
+              clients={clients}
+              onSuccess={handleEditSuccess}
+              onCancel={handleCancelEdit}
             />
           </div>
         </div>

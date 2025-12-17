@@ -9,6 +9,7 @@ interface LessonHistoryTableProps {
   unpaidBalance: number;
   clientId: string;
   onRefresh?: () => void;
+  onEditLesson?: (lessonId: string) => void;
 }
 
 type PaymentStatusFilter = 'All' | 'Pending' | 'Paid' | 'Overdue';
@@ -20,6 +21,7 @@ export default function LessonHistoryTable({
   unpaidBalance,
   clientId,
   onRefresh,
+  onEditLesson,
 }: LessonHistoryTableProps) {
   const [paymentFilter, setPaymentFilter] = useState<PaymentStatusFilter>('All');
   const [sortField, setSortField] = useState<SortField>('date');
@@ -398,8 +400,11 @@ export default function LessonHistoryTable({
                             {actionLoading === lesson.lessonId ? 'Updating...' : 'Mark Paid'}
                           </button>
                         )}
-                        <button className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium">
-                          View Details
+                        <button
+                          onClick={() => onEditLesson?.(lesson.lessonId)}
+                          className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium"
+                        >
+                          Edit Lesson
                         </button>
                       </div>
                     </td>

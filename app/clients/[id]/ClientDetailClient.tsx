@@ -4,10 +4,13 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import ClientForm from '@/components/ClientForm';
 import LessonHistoryTable from '@/components/LessonHistoryTable';
-import { deleteClient } from '@/app/actions/client-actions';
+import EditLessonForm from '@/components/EditLessonForm';
+import { deleteClient, getClients } from '@/app/actions/client-actions';
 import { getLessonHistory, calculateUnpaidBalance } from '@/app/actions/lesson-history-actions';
+import { getLessonById } from '@/app/actions/lesson-actions';
 import { Client } from '@/lib/types/client';
 import { LessonHistoryEntry } from '@/lib/types/lesson-history';
+import type { LessonWithClient } from '@/lib/types/lesson';
 
 interface ClientDetailClientProps {
   client: Client;
@@ -22,11 +25,15 @@ export default function ClientDetailClient({ client, coachId }: ClientDetailClie
   const [lessonHistory, setLessonHistory] = useState<LessonHistoryEntry[]>([]);
   const [unpaidBalance, setUnpaidBalance] = useState(0);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [showEditLesson, setShowEditLesson] = useState(false);
+  const [selectedLesson, setSelectedLesson] = useState<LessonWithClient | null>(null);
+  const [allClients, setAllClients] = useState<Client[]>([]);
   const router = useRouter();
 
   // Fetch lesson history and unpaid balance on mount
   useEffect(() => {
     fetchLessonData();
+    fetchAllClients();
   }, [client.id]);
 
   const fetchLessonData = async () => {
@@ -45,6 +52,33 @@ export default function ClientDetailClient({ client, coachId }: ClientDetailClie
     }
 
     setIsLoadingHistory(false);
+  };
+
+  const fetchAllClients = async () => {
+    const result = await getClients();
+    if (result.success) {
+      setAllClients(result.data);
+    }
+  };
+
+  const handleEditLesson = async (lessonId: string) => {
+    const result = await getLessonById(lessonId);
+    if (result.success && result.data) {
+      setSelectedLesson(result.data);
+      setShowEditLesson(true);
+    }
+  };
+
+  const handleEditLessonSuccess = async () => {
+    setShowEditLesson(false);
+    setSelectedLesson(null);
+    await fetchLessonData();
+    router.refresh();
+  };
+
+  const handleCancelEditLesson = () => {
+    setShowEditLesson(false);
+    setSelectedLesson(null);
   };
 
   const handleDelete = async () => {
@@ -232,6 +266,7 @@ export default function ClientDetailClient({ client, coachId }: ClientDetailClie
             unpaidBalance={unpaidBalance}
             clientId={client.id}
             onRefresh={fetchLessonData}
+            onEditLesson={handleEditLesson}
           />
         )}
       </div>
@@ -290,6 +325,20 @@ export default function ClientDetailClient({ client, coachId }: ClientDetailClie
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Lesson Modal */}
+      {showEditLesson && selectedLesson && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="w-full max-w-2xl">
+            <EditLessonForm
+              lesson={selectedLesson}
+              clients={allClients}
+              onSuccess={handleEditLessonSuccess}
+              onCancel={handleCancelEditLesson}
+            />
           </div>
         </div>
       )}
