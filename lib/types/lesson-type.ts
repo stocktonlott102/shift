@@ -9,7 +9,6 @@ export interface LessonType {
   name: string;
   hourly_rate: number;
   color: string;
-  title_template: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -19,14 +18,12 @@ export interface CreateLessonTypeInput {
   name: string;
   hourly_rate: number;
   color: string;
-  title_template: string;
 }
 
 export interface UpdateLessonTypeInput {
   name?: string;
   hourly_rate?: number;
   color?: string;
-  title_template?: string;
 }
 
 export interface LessonTypeFormData extends CreateLessonTypeInput {
@@ -36,11 +33,9 @@ export interface LessonTypeFormData extends CreateLessonTypeInput {
 // Validation constants
 export const LESSON_TYPE_CONSTRAINTS = {
   NAME_MAX_LENGTH: 50,
-  TITLE_TEMPLATE_MAX_LENGTH: 100,
   MAX_HOURLY_RATE: 999,
   MIN_HOURLY_RATE: 0.01,
   DEFAULT_COLOR: '#3B82F6',
-  DEFAULT_TITLE_TEMPLATE: '{client_names}',
 } as const;
 
 // Predefined lesson type colors (optional presets for UI)

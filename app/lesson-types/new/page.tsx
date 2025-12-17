@@ -10,7 +10,6 @@ export default function NewLessonTypePage() {
   const [name, setName] = useState('');
   const [hourlyRate, setHourlyRate] = useState('');
   const [color, setColor] = useState('#3B82F6');
-  const [titleTemplate, setTitleTemplate] = useState('{client_names}');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -42,7 +41,6 @@ export default function NewLessonTypePage() {
         name: name.trim(),
         hourly_rate: rateNum,
         color,
-        title_template: titleTemplate || '{client_names}',
         is_active: true,
       });
       if (insertError) {
@@ -98,15 +96,6 @@ export default function NewLessonTypePage() {
                 onChange={(e) => setColor(e.target.value)}
                 className="w-20 h-10 p-0 border rounded"
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Title Template</label>
-              <input
-                value={titleTemplate}
-                onChange={(e) => setTitleTemplate(e.target.value)}
-                className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-              />
-              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Include {'{client_names}'} where client names should appear.</p>
             </div>
             <div className="pt-2">
               <button

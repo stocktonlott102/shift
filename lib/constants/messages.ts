@@ -28,7 +28,7 @@ export const ERROR_MESSAGES = {
   LESSON: {
     REQUIRED_FIELDS: 'All required fields must be filled out.',
     INVALID_TIME_RANGE: 'End time must be after start time.',
-    INVALID_DURATION: 'Lesson duration must be at least 15 minutes.',
+    INVALID_DURATION: 'Lesson duration must be at least 5 minutes.',
     CLIENT_REQUIRED: 'Please select a client for this lesson.',
     TITLE_REQUIRED: 'Lesson title is required.',
     TYPE_NOT_FOUND: 'Lesson type not found or inactive.',

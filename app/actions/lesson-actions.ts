@@ -73,11 +73,11 @@ export async function createLesson(formData: CreateSingleClientLessonInput) {
       };
     }
 
-    // Validation: Minimum lesson duration (15 minutes)
+    // Validation: Minimum lesson duration (5 minutes)
     const durationMs = endTime.getTime() - startTime.getTime();
     const durationMinutes = durationMs / (1000 * 60);
 
-    if (durationMinutes < 15) {
+    if (durationMinutes < 5) {
       return {
         success: false,
         error: ERROR_MESSAGES.LESSON.INVALID_DURATION,
@@ -227,7 +227,7 @@ export async function createLessonWithParticipants(input: CreateMultiClientLesso
 
     const durationMs = endTime.getTime() - startTime.getTime();
     const durationMinutes = durationMs / (1000 * 60);
-    if (durationMinutes < 15) {
+    if (durationMinutes < 5) {
       return { success: false, error: ERROR_MESSAGES.LESSON.INVALID_DURATION };
     }
 

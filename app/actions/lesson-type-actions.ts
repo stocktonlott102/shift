@@ -55,7 +55,6 @@ export async function createLessonType(
         name: input.name.trim(),
         hourly_rate: input.hourly_rate,
         color: input.color || '#3B82F6',
-        title_template: input.title_template || '{client_names}',
         is_active: true,
       })
       .select()
@@ -135,7 +134,6 @@ export async function updateLessonType(
     if (input.name !== undefined) updatePayload.name = input.name.trim();
     if (input.hourly_rate !== undefined) updatePayload.hourly_rate = input.hourly_rate;
     if (input.color !== undefined) updatePayload.color = input.color;
-    if (input.title_template !== undefined) updatePayload.title_template = input.title_template;
 
     const { data, error } = await supabase
       .from('lesson_types')

@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { LessonWithClient } from '@/lib/types/lesson';
-import { getOutstandingLessons, confirmLesson, markLessonNoShow } from '@/app/actions/lesson-history-actions';
+import { 
+  getOutstandingLessons, 
+  confirmLesson, 
+  markLessonNoShow,
+  markParticipantPaid,
+  markLessonParticipantsPaid,
+} from '@/app/actions/lesson-history-actions';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 
@@ -61,6 +67,65 @@ export default function OutstandingLessonsClient({ coachId }: OutstandingLessons
       setLessons((prev) => prev.filter((lesson) => lesson.id !== lessonId));
     } else {
       setError(result.error || 'Failed to mark lesson as no-show');
+    }
+
+    setActionLoading(null);
+  };
+
+  const handleMarkParticipantPaid = async (lessonId: string, clientId: string) => {
+    const actionKey = `participant-${lessonId}-${clientId}`;
+    setActionLoading(actionKey);
+    setError(null);
+
+    const result = await markParticipantPaid(lessonId, clientId);
+
+    if (result.success) {
+      // Update the lesson to remove this participant's amount
+      setLessons((prev) =>
+        prev.map((lesson) => {
+          if (lesson.id === lessonId && lesson.lesson_participants) {
+            return {
+              ...lesson,
+              lesson_participants: lesson.lesson_participants.map((p) =>
+                p.client_id === clientId ? { ...p, amount_owed: 0 } : p
+              ),
+            };
+          }
+          return lesson;
+        })
+      );
+    } else {
+      setError(result.error || 'Failed to mark participant as paid');
+    }
+
+    setActionLoading(null);
+  };
+
+  const handleMarkAllParticipantsPaid = async (lessonId: string) => {
+    const actionKey = `all-paid-${lessonId}`;
+    setActionLoading(actionKey);
+    setError(null);
+
+    const result = await markLessonParticipantsPaid(lessonId);
+
+    if (result.success) {
+      // Update the lesson to mark all participants as paid
+      setLessons((prev) =>
+        prev.map((lesson) => {
+          if (lesson.id === lessonId && lesson.lesson_participants) {
+            return {
+              ...lesson,
+              lesson_participants: lesson.lesson_participants.map((p) => ({
+                ...p,
+                amount_owed: 0,
+              })),
+            };
+          }
+          return lesson;
+        })
+      );
+    } else {
+      setError(result.error || 'Failed to mark participants as paid');
     }
 
     setActionLoading(null);
@@ -232,14 +297,29 @@ export default function OutstandingLessonsClient({ coachId }: OutstandingLessons
                       {lesson.lesson_participants && lesson.lesson_participants.length > 0 ? (
                         <div className="mt-2">
                           <p className="font-medium mb-1">Per-Client Cost:</p>
-                          <div className="ml-4 space-y-1">
+                          <div className="ml-4 space-y-2">
                             {lesson.lesson_participants.map((participant) => (
-                              <p key={participant.id} className="flex items-center gap-2">
-                                <span className="text-sm">{participant.client.athlete_name}:</span>
-                                <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                                  {formatCost(Number(participant.amount_owed))}
-                                </span>
-                              </p>
+                              <div key={participant.id} className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm">{participant.client.athlete_name}:</span>
+                                  <span className={`text-sm font-semibold ${
+                                    Number(participant.amount_owed) === 0
+                                      ? 'text-green-600 dark:text-green-400'
+                                      : 'text-gray-900 dark:text-white'
+                                  }`}>
+                                    {formatCost(Number(participant.amount_owed))}
+                                  </span>
+                                </div>
+                                {Number(participant.amount_owed) > 0 && (
+                                  <button
+                                    onClick={() => handleMarkParticipantPaid(lesson.id, participant.client_id)}
+                                    disabled={actionLoading?.startsWith('participant-' + lesson.id)}
+                                    className="text-xs bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-2 py-1 rounded transition-colors"
+                                  >
+                                    {actionLoading === `participant-${lesson.id}-${participant.client_id}` ? 'Marking...' : 'Mark Paid'}
+                                  </button>
+                                )}
+                              </div>
                             ))}
                           </div>
                           <p className="flex items-center gap-2 mt-2">
@@ -248,6 +328,15 @@ export default function OutstandingLessonsClient({ coachId }: OutstandingLessons
                               {formatCost(getTotalCost(lesson))}
                             </span>
                           </p>
+                          {lesson.lesson_participants.some((p) => Number(p.amount_owed) > 0) && (
+                            <button
+                              onClick={() => handleMarkAllParticipantsPaid(lesson.id)}
+                              disabled={actionLoading?.startsWith('all-paid-')}
+                              className="mt-2 text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-3 py-1 rounded transition-colors"
+                            >
+                              {actionLoading === `all-paid-${lesson.id}` ? 'Processing...' : 'Mark All Paid'}
+                            </button>
+                          )}
                         </div>
                       ) : (
                         <p className="flex items-center gap-2">

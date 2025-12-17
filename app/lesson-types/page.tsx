@@ -17,11 +17,10 @@ export default function LessonTypesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [name, setName] = useState('');
   const [hourlyRate, setHourlyRate] = useState('');
   const [color, setColor] = useState('#3B82F6');
-  const defaultTemplate = '{client_names}';
-  const [titleTemplate, setTitleTemplate] = useState(defaultTemplate);
 
   useEffect(() => {
     const load = async () => {
@@ -46,7 +45,7 @@ export default function LessonTypesPage() {
     setName('');
     setHourlyRate('');
     setColor('#3B82F6');
-    setTitleTemplate(defaultTemplate);
+    setShowDeleteConfirm(false);
     setIsModalOpen(true);
   }
 
@@ -55,7 +54,7 @@ export default function LessonTypesPage() {
     setName(t.name);
     setHourlyRate(String(t.hourly_rate));
     setColor(t.color);
-    setTitleTemplate(t.title_template || defaultTemplate);
+    setShowDeleteConfirm(false);
     setIsModalOpen(true);
   }
 
@@ -79,14 +78,12 @@ export default function LessonTypesPage() {
           name: name.trim(),
           hourly_rate: rateNum,
           color,
-          title_template: titleTemplate || defaultTemplate,
         });
       } else {
         result = await createLessonType({
           name: name.trim(),
           hourly_rate: rateNum,
           color,
-          title_template: titleTemplate || defaultTemplate,
         });
       }
 
@@ -113,7 +110,6 @@ export default function LessonTypesPage() {
       setName('');
       setHourlyRate('');
       setColor('#3B82F6');
-      setTitleTemplate(defaultTemplate);
       setEditingId(null);
       setIsModalOpen(false);
     } catch (e: any) {
@@ -123,20 +119,21 @@ export default function LessonTypesPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!window.confirm('Are you sure you want to delete this lesson type?')) {
-      return;
-    }
+  async function handleDelete() {
+    if (!editingId) return;
     setSaving(true);
     setError(null);
     try {
-      const result = await deleteLessonType(id);
+      const result = await deleteLessonType(editingId);
       if (!result.success) {
         setError(result.error || 'Failed to delete lesson type');
         setSaving(false);
         return;
       }
-      setTypes((prev) => prev.filter((t) => t.id !== id));
+      setTypes((prev) => prev.filter((t) => t.id !== editingId));
+      setIsModalOpen(false);
+      setShowDeleteConfirm(false);
+      setEditingId(null);
     } catch (e: any) {
       setError(e.message || 'Unexpected error');
     } finally {
@@ -187,14 +184,6 @@ export default function LessonTypesPage() {
                       className="text-indigo-600 dark:text-indigo-400 hover:underline"
                     >
                       Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(t.id)}
-                      disabled={saving}
-                      className="text-red-600 dark:text-red-400 hover:underline disabled:opacity-50"
-                    >
-                      Delete
                     </button>
                     </li>
                     );
@@ -258,32 +247,63 @@ export default function LessonTypesPage() {
                   disabled={saving}
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Title Template</label>
-                <input
-                  value={titleTemplate}
-                  onChange={(e) => setTitleTemplate(e.target.value)}
-                  className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                  disabled={saving}
-                />
-                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Include {'{client_names}'} where client names should appear.</p>
-              </div>
-              <div className="flex items-center justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => !saving && setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
-                  disabled={saving}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-70"
-                >
-                  {saving ? 'Saving...' : editingId ? 'Update' : 'Create'}
-                </button>
+              {/* Delete confirmation */}
+              {showDeleteConfirm && editingId && (
+                <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <p className="text-red-800 dark:text-red-200 font-medium mb-3">
+                    Are you sure you want to delete this lesson type? This action cannot be undone.
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={saving}
+                      className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-70"
+                    >
+                      {saving ? 'Deleting...' : 'Yes, Delete'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteConfirm(false)}
+                      disabled={saving}
+                      className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between gap-3 pt-2">
+                <div>
+                  {editingId && !showDeleteConfirm && (
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteConfirm(true)}
+                      disabled={saving}
+                      className="px-4 py-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => !saving && setIsModalOpen(false)}
+                    className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    disabled={saving}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving || showDeleteConfirm}
+                    className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-70"
+                  >
+                    {saving ? 'Saving...' : editingId ? 'Update' : 'Create'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

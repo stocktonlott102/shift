@@ -677,3 +677,153 @@ export async function markAllLessonsPaid(
     };
   }
 }
+
+/**
+ * Mark a lesson participant as paid
+ * Updates the lesson_participants record's amount_owed to 0
+ * Used for multi-client lessons where payments are tracked per participant
+ */
+export async function markParticipantPaid(
+  lessonId: string,
+  clientId: string
+): Promise<LessonHistoryActionResponse> {
+  try {
+    const supabase = await createClient();
+
+    // Verify authentication
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return {
+        success: false,
+        error: ERROR_MESSAGES.AUTH.NOT_LOGGED_IN,
+      };
+    }
+
+    // Verify the lesson belongs to this coach
+    const { data: lesson, error: lessonError } = await supabase
+      .from('lessons')
+      .select('id, coach_id')
+      .eq('id', lessonId)
+      .eq('coach_id', user.id)
+      .single();
+
+    if (lessonError || !lesson) {
+      return {
+        success: false,
+        error: ERROR_MESSAGES.LESSON.NOT_FOUND,
+      };
+    }
+
+    // Update the lesson_participants record
+    const { error: updateError } = await supabase
+      .from('lesson_participants')
+      .update({
+        amount_owed: 0,
+      })
+      .eq('lesson_id', lessonId)
+      .eq('client_id', clientId);
+
+    if (updateError) {
+      console.error('Error marking participant as paid:', updateError);
+      return {
+        success: false,
+        error: ERROR_MESSAGES.PAYMENT.MARK_PAID_FAILED,
+      };
+    }
+
+    // Revalidate pages that display lesson data
+    revalidatePath('/outstanding-lessons');
+    revalidatePath('/clients/[id]', 'page');
+    revalidatePath('/dashboard');
+
+    return {
+      success: true,
+      message: SUCCESS_MESSAGES.PAYMENT.MARKED_PAID,
+    };
+  } catch (error: any) {
+    console.error('Unexpected error in markParticipantPaid:', error);
+    return {
+      success: false,
+      error: ERROR_MESSAGES.GENERIC.UNEXPECTED_ERROR,
+    };
+  }
+}
+
+/**
+ * Mark all participants in a lesson as paid
+ * Updates all lesson_participants records to have amount_owed = 0
+ * Used when confirming a completed multi-client lesson
+ */
+export async function markLessonParticipantsPaid(
+  lessonId: string
+): Promise<LessonHistoryActionResponse> {
+  try {
+    const supabase = await createClient();
+
+    // Verify authentication
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return {
+        success: false,
+        error: ERROR_MESSAGES.AUTH.NOT_LOGGED_IN,
+      };
+    }
+
+    // Verify the lesson belongs to this coach
+    const { data: lesson, error: lessonError } = await supabase
+      .from('lessons')
+      .select('id, coach_id, lesson_participants(id)')
+      .eq('id', lessonId)
+      .eq('coach_id', user.id)
+      .single();
+
+    if (lessonError || !lesson) {
+      return {
+        success: false,
+        error: ERROR_MESSAGES.LESSON.NOT_FOUND,
+      };
+    }
+
+    // If lesson has participants, mark them all as paid
+    if (lesson.lesson_participants && lesson.lesson_participants.length > 0) {
+      const { error: updateError } = await supabase
+        .from('lesson_participants')
+        .update({
+          amount_owed: 0,
+        })
+        .eq('lesson_id', lessonId);
+
+      if (updateError) {
+        console.error('Error marking lesson participants as paid:', updateError);
+        return {
+          success: false,
+          error: ERROR_MESSAGES.PAYMENT.MARK_PAID_FAILED,
+        };
+      }
+    }
+
+    // Revalidate pages that display lesson data
+    revalidatePath('/outstanding-lessons');
+    revalidatePath('/clients/[id]', 'page');
+    revalidatePath('/dashboard');
+
+    return {
+      success: true,
+      message: SUCCESS_MESSAGES.PAYMENT.MARKED_PAID,
+    };
+  } catch (error: any) {
+    console.error('Unexpected error in markLessonParticipantsPaid:', error);
+    return {
+      success: false,
+      error: ERROR_MESSAGES.GENERIC.UNEXPECTED_ERROR,
+    };
+  }
+}

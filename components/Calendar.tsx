@@ -482,7 +482,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
 
                         {/* Events for this day */}
                         {dayEventsForCol.map((ev) => {
-                          const cls = `scheduler-event ${ev.status === 'Completed' ? 'completed' : ev.status === 'Cancelled' ? 'cancelled' : ev.status === 'No Show' ? 'noshow' : 'scheduled'}`;
+                          const cls = `scheduler-event ${ev.status === 'Completed' ? 'completed' : ev.status === 'Cancelled' ? 'cancelled' : ev.status === 'No Show' ? 'noshow' : 'scheduled'} ${ev.height <= (HOUR_HEIGHT_PX * (20 / 60)) ? 'small' : ''}`;
                           return (
                             <div
                               key={ev.id}
@@ -537,7 +537,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
                 </div>
 
                 {events.map((ev) => {
-                  const cls = `scheduler-event ${ev.status === 'Completed' ? 'completed' : ev.status === 'Cancelled' ? 'cancelled' : ev.status === 'No Show' ? 'noshow' : 'scheduled'}`;
+                  const cls = `scheduler-event ${ev.status === 'Completed' ? 'completed' : ev.status === 'Cancelled' ? 'cancelled' : ev.status === 'No Show' ? 'noshow' : 'scheduled'} ${ev.height <= (HOUR_HEIGHT_PX * (20 / 60)) ? 'small' : ''}`;
                   return (
                     <div
                       key={ev.id}
