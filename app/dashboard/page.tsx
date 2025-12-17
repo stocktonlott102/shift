@@ -308,11 +308,11 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* Coming Soon Notice */}
-        <div className="mt-8 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
-          <div className="flex items-start">
+        {/* Beta Notice */}
+        <div className="mt-8 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <div className="flex items-center gap-2">
             <svg
-              className="w-6 h-6 text-blue-600 dark:text-blue-400 mt-0.5 mr-3 flex-shrink-0"
+              className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -324,15 +324,9 @@ export default async function DashboardPage() {
                 d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <div>
-              <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">
-                Dashboard Under Construction
-              </h4>
-              <p className="text-sm text-blue-700 dark:text-blue-300">
-                You&apos;re viewing the MVP dashboard. Client management, lesson scheduling,
-                and invoice features are coming soon according to the development roadmap.
-              </p>
-            </div>
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              Shift is brand new! Please be patient with any bugs. If you encounter any issues, reach out to support.
+            </p>
           </div>
         </div>
       </main>

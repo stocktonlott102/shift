@@ -4,6 +4,9 @@
  * Centralized type definitions for lesson calendar and invoicing
  */
 
+import { LessonType } from './lesson-type';
+import { Client } from './client';
+
 // =====================================================
 // ENUMS
 // =====================================================
@@ -12,13 +15,30 @@ export type LessonStatus = 'Scheduled' | 'Completed' | 'Cancelled' | 'No Show';
 export type PaymentStatus = 'Pending' | 'Paid' | 'Overdue' | 'Canceled';
 
 // =====================================================
+// LESSON PARTICIPANT TYPES
+// =====================================================
+
+export interface LessonParticipant {
+  id: string;
+  lesson_id: string;
+  client_id: string;
+  amount_owed: number;
+  created_at: string;
+}
+
+export interface LessonParticipantWithClient extends LessonParticipant {
+  client: Client;
+}
+
+// =====================================================
 // LESSON TYPES
 // =====================================================
 
 export interface Lesson {
   id: string;
   coach_id: string;
-  client_id: string;
+  client_id: string | null; // Deprecated: kept for backward compatibility with old lessons
+  lesson_type_id: string | null; // New: references lesson_types table
 
   // Lesson Details
   title: string;
@@ -28,7 +48,7 @@ export interface Lesson {
   location?: string | null;
 
   // Financial
-  rate_at_booking: number;
+  rate_at_booking: number; // Historical rate snapshot
   duration_hours?: number; // Calculated field
 
   // Status
@@ -42,15 +62,17 @@ export interface Lesson {
 }
 
 /**
- * Form data for creating a new lesson
+ * Form data for creating a new lesson (updated for multi-client support)
  */
 export interface CreateLessonData {
-  client_id: string;
-  title: string;
+  lesson_type_id: string | null; // null for custom lessons
+  client_ids: string[]; // Multiple clients for group lessons
+  title: string; // Auto-generated or custom
   description?: string;
   start_time: string; // ISO 8601 timestamp
   end_time: string; // ISO 8601 timestamp
   location?: string;
+  custom_hourly_rate?: number; // Only for custom lessons (lesson_type_id = null)
 }
 
 /**
@@ -123,6 +145,7 @@ export interface UpdateInvoiceData {
 /**
  * Lesson with client information
  * (useful for calendar display)
+ * DEPRECATED: Use LessonWithParticipants for new lessons
  */
 export interface LessonWithClient extends Lesson {
   client: {
@@ -131,6 +154,15 @@ export interface LessonWithClient extends Lesson {
     parent_email: string;
     parent_phone: string;
   };
+}
+
+/**
+ * Lesson with participants and lesson type
+ * (for new multi-client lessons)
+ */
+export interface LessonWithParticipants extends Lesson {
+  participants?: LessonParticipantWithClient[];
+  lesson_type?: LessonType | null;
 }
 
 /**
