@@ -94,6 +94,27 @@ export default function OutstandingLessonsClient({ coachId }: OutstandingLessons
     return `$${rate.toFixed(2)}`;
   };
 
+  const getTotalCost = (lesson: LessonWithClient) => {
+    // For multi-client lessons, sum participant amounts
+    if (lesson.lesson_participants && lesson.lesson_participants.length > 0) {
+      return lesson.lesson_participants.reduce((sum, p) => sum + Number(p.amount_owed), 0);
+    }
+    // For legacy single-client lessons, use rate_at_booking
+    return lesson.rate_at_booking;
+  };
+
+  const getClientNames = (lesson: LessonWithClient): string[] => {
+    // Multi-client lesson
+    if (lesson.lesson_participants && lesson.lesson_participants.length > 0) {
+      return lesson.lesson_participants.map(p => p.client.athlete_name);
+    }
+    // Legacy single-client lesson
+    if (lesson.client) {
+      return [lesson.client.athlete_name];
+    }
+    return [];
+  };
+
   if (isLoading) {
     return (
       <>
@@ -184,9 +205,15 @@ export default function OutstandingLessonsClient({ coachId }: OutstandingLessons
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   {/* Lesson Info */}
                   <div className="flex-1">
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                      {lesson.client.athlete_name}
-                    </h3>
+                    {/* Client Names */}
+                    <div className="mb-2">
+                      {getClientNames(lesson).map((name, idx) => (
+                        <h3 key={idx} className="text-xl font-semibold text-gray-900 dark:text-white">
+                          {name}
+                        </h3>
+                      ))}
+                    </div>
+
                     <div className="space-y-1 text-gray-600 dark:text-gray-400">
                       <p className="flex items-center gap-2">
                         <span className="font-medium">Date:</span>
@@ -200,12 +227,36 @@ export default function OutstandingLessonsClient({ coachId }: OutstandingLessons
                         <span className="font-medium">Service:</span>
                         {lesson.title}
                       </p>
-                      <p className="flex items-center gap-2">
-                        <span className="font-medium">Cost:</span>
-                        <span className="text-lg font-semibold text-gray-900 dark:text-white">
-                          {formatCost(lesson.rate_at_booking)}
-                        </span>
-                      </p>
+
+                      {/* Cost breakdown for multi-client or single amount */}
+                      {lesson.lesson_participants && lesson.lesson_participants.length > 0 ? (
+                        <div className="mt-2">
+                          <p className="font-medium mb-1">Per-Client Cost:</p>
+                          <div className="ml-4 space-y-1">
+                            {lesson.lesson_participants.map((participant) => (
+                              <p key={participant.id} className="flex items-center gap-2">
+                                <span className="text-sm">{participant.client.athlete_name}:</span>
+                                <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                                  {formatCost(Number(participant.amount_owed))}
+                                </span>
+                              </p>
+                            ))}
+                          </div>
+                          <p className="flex items-center gap-2 mt-2">
+                            <span className="font-medium">Total:</span>
+                            <span className="text-lg font-semibold text-gray-900 dark:text-white">
+                              {formatCost(getTotalCost(lesson))}
+                            </span>
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="flex items-center gap-2">
+                          <span className="font-medium">Cost:</span>
+                          <span className="text-lg font-semibold text-gray-900 dark:text-white">
+                            {formatCost(lesson.rate_at_booking)}
+                          </span>
+                        </p>
+                      )}
                     </div>
                   </div>
 

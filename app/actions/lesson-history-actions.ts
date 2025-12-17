@@ -46,6 +46,17 @@ export async function getOutstandingLessons(): Promise<
           athlete_name,
           parent_email,
           parent_phone
+        ),
+        lesson_participants (
+          id,
+          client_id,
+          amount_owed,
+          client:clients (
+            id,
+            athlete_name,
+            parent_email,
+            parent_phone
+          )
         )
       `
       )

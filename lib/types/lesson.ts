@@ -153,7 +153,18 @@ export interface LessonWithClient extends Lesson {
     athlete_name: string;
     parent_email: string;
     parent_phone: string;
-  };
+  } | null;
+  lesson_participants?: Array<{
+    id: string;
+    client_id: string;
+    amount_owed: number;
+    client: {
+      id: string;
+      athlete_name: string;
+      parent_email: string;
+      parent_phone: string;
+    };
+  }>;
 }
 
 /**
