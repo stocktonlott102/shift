@@ -6,7 +6,7 @@ import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/lib/constants/messages';
 import type { Client } from '@/lib/types/client';
 import ClientMultiPicker from './ClientMultiPicker';
 import { createClient as createBrowserClient } from '@/lib/supabase/client';
-import type { LessonType } from '@/lib/supabase/types';
+import type { LessonType } from '@/lib/types/lesson-type';
 
 interface BookLessonFormProps {
   clients: Client[];

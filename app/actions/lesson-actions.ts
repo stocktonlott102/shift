@@ -4,13 +4,20 @@ import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/lib/constants/messages';
 import type {
-  CreateLessonData,
   UpdateLessonData,
   CancelLessonData,
   Lesson,
   LessonWithClient,
 } from '@/lib/types/lesson';
-import type { LessonType } from '@/lib/supabase/types';
+
+type CreateSingleClientLessonInput = {
+  client_id: string;
+  title: string;
+  description?: string | null;
+  start_time: string;
+  end_time: string;
+  location?: string | null;
+};
 
 type CreateMultiClientLessonInput = {
   title: string;
@@ -30,7 +37,7 @@ type CreateMultiClientLessonInput = {
  * Security: Uses Supabase Server Client with RLS policies
  * Business Logic: When a lesson is created, an invoice is automatically generated
  */
-export async function createLesson(formData: CreateLessonData) {
+export async function createLesson(formData: CreateSingleClientLessonInput) {
   try {
     const supabase = await createClient();
 
