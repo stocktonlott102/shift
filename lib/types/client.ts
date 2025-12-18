@@ -7,12 +7,11 @@
 export interface Client {
   id: string;
   coach_id: string;
-  athlete_name: string;
+  first_name: string;
+  last_name: string;
   parent_email: string;
   parent_phone: string;
-  hourly_rate: number;
   notes?: string | null;
-  status: string;
   created_at: string;
   updated_at?: string;
 }
@@ -22,10 +21,10 @@ export interface Client {
  * (excludes system-managed fields like id, timestamps)
  */
 export interface ClientFormData {
-  athlete_name: string;
+  first_name: string;
+  last_name: string;
   parent_email: string;
   parent_phone: string;
-  hourly_rate: number;
   notes?: string;
 }
 

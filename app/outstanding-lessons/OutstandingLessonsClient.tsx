@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { LessonWithClient } from '@/lib/types/lesson';
-import { 
-  getOutstandingLessons, 
-  confirmLesson, 
+import {
+  getOutstandingLessons,
+  confirmLesson,
   markLessonNoShow,
-  markParticipantPaid,
-  markLessonParticipantsPaid,
 } from '@/app/actions/lesson-history-actions';
+import { cancelLesson, deleteLesson } from '@/app/actions/lesson-actions';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 
@@ -21,11 +20,27 @@ export default function OutstandingLessonsClient({ coachId }: OutstandingLessons
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [lessonToDelete, setLessonToDelete] = useState<string | null>(null);
 
   // Fetch outstanding lessons on mount
   useEffect(() => {
     fetchOutstandingLessons();
   }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (openMenuId && !target.closest('.relative')) {
+        setOpenMenuId(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [openMenuId]);
 
   const fetchOutstandingLessons = async () => {
     setIsLoading(true);
@@ -59,6 +74,7 @@ export default function OutstandingLessonsClient({ coachId }: OutstandingLessons
 
   const handleMarkNoShow = async (lessonId: string) => {
     setActionLoading(lessonId);
+    setOpenMenuId(null);
 
     const result = await markLessonNoShow(lessonId);
 
@@ -72,63 +88,39 @@ export default function OutstandingLessonsClient({ coachId }: OutstandingLessons
     setActionLoading(null);
   };
 
-  const handleMarkParticipantPaid = async (lessonId: string, clientId: string) => {
-    const actionKey = `participant-${lessonId}-${clientId}`;
-    setActionLoading(actionKey);
-    setError(null);
+  const handleMarkCancelled = async (lessonId: string) => {
+    setActionLoading(lessonId);
+    setOpenMenuId(null);
 
-    const result = await markParticipantPaid(lessonId, clientId);
+    const result = await cancelLesson(lessonId);
 
     if (result.success) {
-      // Update the lesson to remove this participant's amount
-      setLessons((prev) =>
-        prev.map((lesson) => {
-          if (lesson.id === lessonId && lesson.lesson_participants) {
-            return {
-              ...lesson,
-              lesson_participants: lesson.lesson_participants.map((p) =>
-                p.client_id === clientId ? { ...p, amount_owed: 0 } : p
-              ),
-            };
-          }
-          return lesson;
-        })
-      );
+      // Optimistically remove lesson from list
+      setLessons((prev) => prev.filter((lesson) => lesson.id !== lessonId));
     } else {
-      setError(result.error || 'Failed to mark participant as paid');
+      setError(result.error || 'Failed to cancel lesson');
     }
 
     setActionLoading(null);
   };
 
-  const handleMarkAllParticipantsPaid = async (lessonId: string) => {
-    const actionKey = `all-paid-${lessonId}`;
-    setActionLoading(actionKey);
-    setError(null);
+  const handleDeleteLesson = async () => {
+    if (!lessonToDelete) return;
 
-    const result = await markLessonParticipantsPaid(lessonId);
+    setActionLoading(lessonToDelete);
+    setShowDeleteDialog(false);
+
+    const result = await deleteLesson(lessonToDelete);
 
     if (result.success) {
-      // Update the lesson to mark all participants as paid
-      setLessons((prev) =>
-        prev.map((lesson) => {
-          if (lesson.id === lessonId && lesson.lesson_participants) {
-            return {
-              ...lesson,
-              lesson_participants: lesson.lesson_participants.map((p) => ({
-                ...p,
-                amount_owed: 0,
-              })),
-            };
-          }
-          return lesson;
-        })
-      );
+      // Optimistically remove lesson from list
+      setLessons((prev) => prev.filter((lesson) => lesson.id !== lessonToDelete));
     } else {
-      setError(result.error || 'Failed to mark participants as paid');
+      setError(result.error || 'Failed to delete lesson');
     }
 
     setActionLoading(null);
+    setLessonToDelete(null);
   };
 
   const formatDate = (dateString: string) => {
@@ -171,11 +163,15 @@ export default function OutstandingLessonsClient({ coachId }: OutstandingLessons
   const getClientNames = (lesson: LessonWithClient): string[] => {
     // Multi-client lesson
     if (lesson.lesson_participants && lesson.lesson_participants.length > 0) {
-      return lesson.lesson_participants.map(p => p.client.athlete_name);
+      return lesson.lesson_participants.map(p =>
+        `${p.client.first_name}${p.client.last_name ? ` ${p.client.last_name.charAt(0)}.` : ''}`
+      );
     }
     // Legacy single-client lesson
     if (lesson.client) {
-      return [lesson.client.athlete_name];
+      return [
+        `${lesson.client.first_name}${lesson.client.last_name ? ` ${lesson.client.last_name.charAt(0)}.` : ''}`
+      ];
     }
     return [];
   };
@@ -297,28 +293,16 @@ export default function OutstandingLessonsClient({ coachId }: OutstandingLessons
                       {lesson.lesson_participants && lesson.lesson_participants.length > 0 ? (
                         <div className="mt-2">
                           <p className="font-medium mb-1">Per-Client Cost:</p>
-                          <div className="ml-4 space-y-2">
+                          <div className="ml-4 space-y-1">
                             {lesson.lesson_participants.map((participant) => (
-                              <div key={participant.id} className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm">{participant.client.athlete_name}:</span>
-                                  <span className={`text-sm font-semibold ${
-                                    Number(participant.amount_owed) === 0
-                                      ? 'text-green-600 dark:text-green-400'
-                                      : 'text-gray-900 dark:text-white'
-                                  }`}>
-                                    {formatCost(Number(participant.amount_owed))}
-                                  </span>
-                                </div>
-                                {Number(participant.amount_owed) > 0 && (
-                                  <button
-                                    onClick={() => handleMarkParticipantPaid(lesson.id, participant.client_id)}
-                                    disabled={actionLoading?.startsWith('participant-' + lesson.id)}
-                                    className="text-xs bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-2 py-1 rounded transition-colors"
-                                  >
-                                    {actionLoading === `participant-${lesson.id}-${participant.client_id}` ? 'Marking...' : 'Mark Paid'}
-                                  </button>
-                                )}
+                              <div key={participant.id} className="flex items-center gap-2">
+                                <span className="text-sm">
+                                  {participant.client.first_name}
+                                  {participant.client.last_name ? ` ${participant.client.last_name.charAt(0)}.` : ''}:
+                                </span>
+                                <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                                  {formatCost(Number(participant.amount_owed))}
+                                </span>
                               </div>
                             ))}
                           </div>
@@ -328,15 +312,6 @@ export default function OutstandingLessonsClient({ coachId }: OutstandingLessons
                               {formatCost(getTotalCost(lesson))}
                             </span>
                           </p>
-                          {lesson.lesson_participants.some((p) => Number(p.amount_owed) > 0) && (
-                            <button
-                              onClick={() => handleMarkAllParticipantsPaid(lesson.id)}
-                              disabled={actionLoading?.startsWith('all-paid-')}
-                              className="mt-2 text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-3 py-1 rounded transition-colors"
-                            >
-                              {actionLoading === `all-paid-${lesson.id}` ? 'Processing...' : 'Mark All Paid'}
-                            </button>
-                          )}
                         </div>
                       ) : (
                         <p className="flex items-center gap-2">
@@ -350,45 +325,149 @@ export default function OutstandingLessonsClient({ coachId }: OutstandingLessons
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                    {/* Primary Action: Mark Complete */}
                     <button
                       onClick={() => handleConfirmLesson(lesson.id)}
                       disabled={actionLoading === lesson.id}
-                      className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-semibold px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                      className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-semibold px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
                     >
                       {actionLoading === lesson.id ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                          <span>Confirming...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>✓</span>
-                          <span>Confirm Occurred</span>
-                        </>
-                      )}
-                    </button>
-                    <button
-                      onClick={() => handleMarkNoShow(lesson.id)}
-                      disabled={actionLoading === lesson.id}
-                      className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 disabled:bg-gray-100 text-gray-800 dark:text-gray-200 font-semibold px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
-                    >
-                      {actionLoading === lesson.id ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-800 dark:border-gray-200"></div>
                           <span>Processing...</span>
                         </>
                       ) : (
                         <>
-                          <span>✕</span>
-                          <span>Mark No-Show</span>
+                          <span>✓</span>
+                          <span>Mark Complete</span>
                         </>
                       )}
                     </button>
+
+                    {/* Three-dot menu for secondary actions */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setOpenMenuId(openMenuId === lesson.id ? null : lesson.id)}
+                        disabled={actionLoading === lesson.id}
+                        className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 disabled:bg-gray-100 text-gray-800 dark:text-gray-200 font-semibold px-4 py-3 rounded-lg transition-colors"
+                        aria-label="More actions"
+                      >
+                        ⋮
+                      </button>
+
+                      {/* Dropdown Menu */}
+                      {openMenuId === lesson.id && (
+                        <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-10">
+                          <div className="py-2">
+                            {/* Mark as No Show */}
+                            <button
+                              onClick={() => handleMarkNoShow(lesson.id)}
+                              disabled={actionLoading === lesson.id}
+                              className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+                            >
+                              <div className="font-medium text-gray-900 dark:text-white">
+                                Mark as No Show
+                              </div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                Client will be charged
+                              </div>
+                            </button>
+
+                            {/* Mark as Cancelled */}
+                            <button
+                              onClick={() => handleMarkCancelled(lesson.id)}
+                              disabled={actionLoading === lesson.id}
+                              className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+                            >
+                              <div className="font-medium text-gray-900 dark:text-white">
+                                Mark as Cancelled
+                              </div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                Client will not be charged
+                              </div>
+                            </button>
+
+                            {/* Delete Permanently */}
+                            <button
+                              onClick={() => {
+                                setLessonToDelete(lesson.id);
+                                setShowDeleteDialog(true);
+                                setOpenMenuId(null);
+                              }}
+                              disabled={actionLoading === lesson.id}
+                              className="w-full text-left px-4 py-3 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50 border-t border-gray-200 dark:border-gray-700"
+                            >
+                              <div className="font-medium text-red-600 dark:text-red-400">
+                                Delete Permanently
+                              </div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                Remove from all records
+                              </div>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Delete Confirmation Dialog */}
+        {showDeleteDialog && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-md w-full p-6">
+              <div className="flex items-start space-x-4 mb-4">
+                <div className="flex-shrink-0">
+                  <svg
+                    className="w-12 h-12 text-red-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                    Delete Lesson Permanently
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                    Are you sure you want to permanently delete this lesson? This will completely remove it from your records and calendar.
+                  </p>
+                  <p className="text-sm font-medium text-red-600 dark:text-red-400">
+                    This action cannot be undone.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={handleDeleteLesson}
+                  disabled={actionLoading === lessonToDelete}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {actionLoading === lessonToDelete ? 'Deleting...' : 'Yes, Delete Permanently'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowDeleteDialog(false);
+                    setLessonToDelete(null);
+                  }}
+                  disabled={actionLoading === lessonToDelete}
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-semibold py-2 px-4 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           </div>
         )}
         </div>

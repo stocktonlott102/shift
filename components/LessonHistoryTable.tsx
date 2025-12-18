@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { LessonHistoryEntry } from '@/lib/types/lesson-history';
-import { markLessonAsPaid, markAllLessonsPaid } from '@/app/actions/lesson-history-actions';
+import { markLessonAsPaid, markLessonAsUnpaid, markAllLessonsPaid } from '@/app/actions/lesson-history-actions';
 
 interface LessonHistoryTableProps {
   lessons: LessonHistoryEntry[];
@@ -55,7 +55,7 @@ export default function LessonHistoryTable({
           comparison = a.paymentStatus.localeCompare(b.paymentStatus);
           break;
         case 'amount':
-          comparison = a.rate - b.rate;
+          comparison = a.charge - b.charge;
           break;
       }
 
@@ -87,13 +87,31 @@ export default function LessonHistoryTable({
     setError(null);
     setSuccessMessage(null);
 
-    const result = await markLessonAsPaid(lessonId);
+    const result = await markLessonAsPaid(lessonId, clientId);
 
     if (result.success) {
       setSuccessMessage(result.message || 'Lesson marked as paid');
       onRefresh?.();
     } else {
       setError(result.error || 'Failed to mark lesson as paid');
+    }
+
+    setActionLoading(null);
+  };
+
+  // Handle marking single lesson as unpaid
+  const handleMarkUnpaid = async (lessonId: string) => {
+    setActionLoading(lessonId);
+    setError(null);
+    setSuccessMessage(null);
+
+    const result = await markLessonAsUnpaid(lessonId, clientId);
+
+    if (result.success) {
+      setSuccessMessage(result.message || 'Lesson marked as unpaid');
+      onRefresh?.();
+    } else {
+      setError(result.error || 'Failed to mark lesson as unpaid');
     }
 
     setActionLoading(null);
@@ -311,13 +329,13 @@ export default function LessonHistoryTable({
                   Time
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Service Type
+                  Lesson Title
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Duration
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Rate
+                  Charge
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Lesson Status
@@ -356,7 +374,7 @@ export default function LessonHistoryTable({
                       {lesson.duration.toFixed(1)} hrs
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white">
-                      {formatCurrency(lesson.rate)}
+                      {formatCurrency(lesson.charge)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
@@ -391,14 +409,27 @@ export default function LessonHistoryTable({
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex flex-col gap-2">
-                        {lesson.lessonStatus === 'Completed' && lesson.paymentStatus === 'Pending' && (
-                          <button
-                            onClick={() => handleMarkPaid(lesson.lessonId)}
-                            disabled={actionLoading === lesson.lessonId}
-                            className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-medium px-3 py-1 rounded transition-colors disabled:cursor-not-allowed text-xs"
-                          >
-                            {actionLoading === lesson.lessonId ? 'Updating...' : 'Mark Paid'}
-                          </button>
+                        {lesson.lessonStatus === 'Completed' && (
+                          <>
+                            {lesson.paymentStatus === 'Pending' && (
+                              <button
+                                onClick={() => handleMarkPaid(lesson.lessonId)}
+                                disabled={actionLoading === lesson.lessonId}
+                                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-medium px-3 py-1 rounded transition-colors disabled:cursor-not-allowed text-xs"
+                              >
+                                {actionLoading === lesson.lessonId ? 'Updating...' : 'Mark Paid'}
+                              </button>
+                            )}
+                            {lesson.paymentStatus === 'Paid' && (
+                              <button
+                                onClick={() => handleMarkUnpaid(lesson.lessonId)}
+                                disabled={actionLoading === lesson.lessonId}
+                                className="bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-400 text-white font-medium px-3 py-1 rounded transition-colors disabled:cursor-not-allowed text-xs"
+                              >
+                                {actionLoading === lesson.lessonId ? 'Updating...' : 'Mark Unpaid'}
+                              </button>
+                            )}
+                          </>
                         )}
                         <button
                           onClick={() => onEditLesson?.(lesson.lessonId)}

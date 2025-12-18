@@ -43,7 +43,7 @@ export default function BookLessonForm({
   const [endTime, setEndTime] = useState(
     defaultEndTime ? formatDateTimeLocal(defaultEndTime) : ''
   );
-  const [durationPreset, setDurationPreset] = useState<15 | 20 | 30 | 60 | 'custom'>(30);
+  const [durationPreset, setDurationPreset] = useState<15 | 20 | 30 | 60 | 'custom'>('custom');
   const [location, setLocation] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +52,7 @@ export default function BookLessonForm({
   const [selectedLessonTypeId, setSelectedLessonTypeId] = useState<string>('');
   const [customRate, setCustomRate] = useState<string>('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [isRecurring, setIsRecurring] = useState(false);
 
   useEffect(() => {
     const loadTypes = async () => {
@@ -121,7 +122,7 @@ export default function BookLessonForm({
       return '';
     }
     const selectedClients = clients.filter((c) => selectedClientIds.includes(c.id));
-    const clientNames = selectedClients.map((c) => c.athlete_name).join(' & ');
+    const clientNames = selectedClients.map((c) => c.first_name).join(' & ');
     // Sanitize lesson type name (strip any legacy {client_names})
     const sanitizedName = lessonType.name.replace(/\s*\{client_names\}\s*/gi, '').trim();
     // Include lesson type name in the title
@@ -210,6 +211,7 @@ export default function BookLessonForm({
         client_ids: selectedClientIds,
         lesson_type_id: selectedLessonTypeId && selectedLessonTypeId !== 'custom' ? selectedLessonTypeId : undefined,
         custom_hourly_rate: selectedLessonTypeId === 'custom' ? rate : undefined,
+        is_recurring: isRecurring,
       });
 
       if (!result.success) {
@@ -230,6 +232,7 @@ export default function BookLessonForm({
       setLocation('');
       setSelectedLessonTypeId('');
       setCustomRate('');
+      setIsRecurring(false);
 
       setTimeout(() => onSuccess?.(), 1500);
     } catch (err) {
@@ -307,7 +310,11 @@ export default function BookLessonForm({
           </div>
           {selectedClientIds.length > 0 && durationHours > 0 && effectiveRate > 0 && (
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              Total: ${totalAmount} — Split: ${perClientAmount} per client
+              {selectedClientIds.length > 1 ? (
+                <>Total: ${totalAmount} — Split: ${perClientAmount} per client</>
+              ) : (
+                <>Total: ${totalAmount}</>
+              )}
             </p>
           )}
         </div>
@@ -483,6 +490,27 @@ export default function BookLessonForm({
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white resize-none"
                   disabled={isLoading}
                 />
+              </div>
+
+              {/* Recurring Lesson */}
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isRecurring}
+                    onChange={(e) => setIsRecurring(e.target.checked)}
+                    disabled={isLoading}
+                    className="mt-1 w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                  <div className="flex-1">
+                    <span className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Make this a recurring lesson
+                    </span>
+                    <span className="block text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Creates weekly lessons for 1 year (52 total lessons){startTime && ` through ${new Date(new Date(startTime).getTime() + 365 * 24 * 60 * 60 * 1000).toLocaleDateString()}`}
+                    </span>
+                  </div>
+                </label>
               </div>
             </div>
           )}

@@ -22,7 +22,7 @@ export interface LessonHistoryEntry {
   endTime: string; // ISO 8601 datetime
   serviceType: string; // lesson.title
   duration: number; // hours
-  rate: number; // rate_at_booking
+  charge: number; // amount_owed for this client from lesson_participants
   lessonStatus: 'Scheduled' | 'Completed' | 'Canceled' | 'No Show';
   paymentStatus: 'Pending' | 'Paid' | 'Overdue' | 'Canceled';
   paidAt?: string | null;

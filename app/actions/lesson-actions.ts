@@ -29,6 +29,7 @@ type CreateMultiClientLessonInput = {
   lesson_type_id?: string; // when using a saved lesson type
   custom_hourly_rate?: number; // used when "Custom" type selected
   rate_at_booking?: number; // optional override, defaults from type/custom
+  is_recurring?: boolean; // true to create weekly recurring lessons for 1 year
 };
 
 /**
@@ -84,12 +85,12 @@ export async function createLesson(formData: CreateSingleClientLessonInput) {
       };
     }
 
-    // Fetch the client to get their hourly rate
+    // Fetch the client to ensure it exists and belongs to coach
     const { data: client, error: clientError } = await supabase
       .from('clients')
-      .select('id, hourly_rate, athlete_name')
+      .select('id')
       .eq('id', formData.client_id)
-      .eq('coach_id', user.id) // Security: Ensure coach owns this client
+      .eq('coach_id', user.id)
       .single();
 
     if (clientError || !client) {
@@ -110,7 +111,7 @@ export async function createLesson(formData: CreateSingleClientLessonInput) {
         start_time: formData.start_time,
         end_time: formData.end_time,
         location: formData.location || null,
-        rate_at_booking: client.hourly_rate,
+        rate_at_booking: 0, // Deprecated - use createLessonWithParticipants instead
         status: 'Scheduled',
       })
       .select()
@@ -125,8 +126,10 @@ export async function createLesson(formData: CreateSingleClientLessonInput) {
     }
 
     // Calculate invoice amount (duration * rate)
+    // NOTE: This function is deprecated. Use createLessonWithParticipants instead.
+    // For now, we'll set a placeholder amount since hourly_rate no longer exists on clients
     const durationHours = durationMs / (1000 * 60 * 60);
-    const amountDue = durationHours * client.hourly_rate;
+    const amountDue = durationHours * 0; // Placeholder - deprecated function
 
     // Generate invoice number
     const { data: invoiceNumberData, error: invoiceNumberError } = await supabase
@@ -275,7 +278,98 @@ export async function createLessonWithParticipants(input: CreateMultiClientLesso
     const totalAmount = Math.round(durationHours * hourlyRate * 100) / 100;
     const splitAmount = Math.round((totalAmount / input.client_ids.length) * 100) / 100;
 
-    // Create the lesson
+    // Handle recurring lesson creation
+    if (input.is_recurring) {
+      const lessons: any[] = [];
+      const allParticipants: any[] = [];
+
+      // Calculate 1 year from start date
+      const firstStartTime = new Date(input.start_time);
+      const recurrenceEndDate = new Date(firstStartTime);
+      recurrenceEndDate.setFullYear(recurrenceEndDate.getFullYear() + 1);
+
+      // Generate 52 weekly lessons
+      for (let i = 0; i < 52; i++) {
+        const lessonStart = new Date(firstStartTime);
+        lessonStart.setDate(lessonStart.getDate() + (i * 7)); // Add weeks
+
+        const lessonEnd = new Date(endTime);
+        lessonEnd.setDate(lessonEnd.getDate() + (i * 7));
+
+        lessons.push({
+          coach_id: user.id,
+          client_id: null,
+          title: input.title,
+          description: input.description || null,
+          start_time: lessonStart.toISOString(),
+          end_time: lessonEnd.toISOString(),
+          location: input.location || null,
+          rate_at_booking: input.rate_at_booking ?? hourlyRate,
+          lesson_type_id: lessonTypeId,
+          status: 'Scheduled',
+          is_recurring: true,
+          recurrence_parent_id: null, // Will update after insert
+          recurrence_end_date: recurrenceEndDate.toISOString(),
+        });
+      }
+
+      // Insert all lessons
+      const { data: createdLessons, error: lessonsError } = await supabase
+        .from('lessons')
+        .insert(lessons)
+        .select();
+
+      if (lessonsError || !createdLessons || createdLessons.length === 0) {
+        console.error('Database error creating recurring lessons:', lessonsError);
+        return {
+          success: false,
+          error: `${ERROR_MESSAGES.LESSON.CREATE_FAILED}: ${lessonsError?.message}`,
+        };
+      }
+
+      // Set the first lesson as the parent for all lessons
+      const parentLessonId = createdLessons[0].id;
+
+      // Update all lessons to reference the parent
+      const { error: updateError } = await supabase
+        .from('lessons')
+        .update({ recurrence_parent_id: parentLessonId })
+        .in('id', createdLessons.map((l: any) => l.id));
+
+      if (updateError) {
+        console.error('Error updating recurrence parent ID:', updateError);
+        // Non-fatal, continue
+      }
+
+      // Create participants for all lessons
+      for (const lesson of createdLessons) {
+        for (const clientId of input.client_ids) {
+          allParticipants.push({
+            lesson_id: lesson.id,
+            client_id: clientId,
+            amount_owed: splitAmount,
+          });
+        }
+      }
+
+      const { error: lpError } = await supabase.from('lesson_participants').insert(allParticipants);
+      if (lpError) {
+        console.error('Error inserting lesson participants:', lpError);
+        return { success: false, error: ERROR_MESSAGES.LESSON.PARTICIPANTS_CREATE_FAILED };
+      }
+
+      // Revalidate relevant pages
+      revalidatePath('/calendar');
+      revalidatePath('/dashboard');
+
+      return {
+        success: true,
+        data: { lesson: createdLessons[0], totalLessonsCreated: createdLessons.length },
+        message: `Created ${createdLessons.length} recurring lessons successfully!`,
+      };
+    }
+
+    // Create a single lesson (non-recurring)
     const { data: lesson, error: lessonError } = await supabase
       .from('lessons')
       .insert({
@@ -290,6 +384,7 @@ export async function createLessonWithParticipants(input: CreateMultiClientLesso
         rate_at_booking: input.rate_at_booking ?? hourlyRate,
         lesson_type_id: lessonTypeId,
         status: 'Scheduled',
+        is_recurring: false,
       })
       .select()
       .single();
@@ -367,7 +462,8 @@ export async function getLessons(filters?: {
         *,
         client:clients (
           id,
-          athlete_name,
+          first_name,
+          last_name,
           parent_email,
           parent_phone
         )
@@ -446,10 +542,10 @@ export async function getLessonById(lessonId: string) {
         *,
         client:clients (
           id,
-          athlete_name,
+          first_name,
+          last_name,
           parent_email,
-          parent_phone,
-          hourly_rate
+          parent_phone
         )
       `
       )
@@ -685,6 +781,61 @@ export async function completeLesson(lessonId: string) {
     };
   } catch (error: any) {
     console.error('Unexpected error completing lesson:', error);
+    return {
+      success: false,
+      error: `${ERROR_MESSAGES.GENERIC.UNEXPECTED_ERROR}: ${error.message || ''}`,
+    };
+  }
+}
+
+/**
+ * Server Action: Delete a lesson permanently
+ * This completely removes the lesson from the database
+ */
+export async function deleteLesson(lessonId: string) {
+  try {
+    const supabase = await createClient();
+
+    // Verify the user is authenticated
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return {
+        success: false,
+        error: ERROR_MESSAGES.AUTH.NOT_LOGGED_IN,
+      };
+    }
+
+    // Delete lesson - RLS policies ensure only the coach can delete their own lessons
+    // Note: lesson_participants will be automatically deleted due to ON DELETE CASCADE
+    const { error } = await supabase
+      .from('lessons')
+      .delete()
+      .eq('id', lessonId)
+      .eq('coach_id', user.id);
+
+    if (error) {
+      console.error('Database error deleting lesson:', error);
+      return {
+        success: false,
+        error: `Failed to delete lesson: ${error.message}`,
+      };
+    }
+
+    // Revalidate relevant pages
+    revalidatePath('/lessons');
+    revalidatePath('/calendar');
+    revalidatePath('/dashboard');
+
+    return {
+      success: true,
+      message: 'Lesson deleted successfully!',
+    };
+  } catch (error: any) {
+    console.error('Unexpected error deleting lesson:', error);
     return {
       success: false,
       error: `${ERROR_MESSAGES.GENERIC.UNEXPECTED_ERROR}: ${error.message || ''}`,

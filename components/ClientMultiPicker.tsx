@@ -23,7 +23,10 @@ export default function ClientMultiPicker({ clients, value, onChange, disabled }
   const filteredClients = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return clients;
-    return clients.filter((c) => c.athlete_name.toLowerCase().includes(q));
+    return clients.filter((c) => 
+      (c.first_name && c.first_name.toLowerCase().includes(q)) || 
+      (c.last_name && c.last_name.toLowerCase().includes(q))
+    );
   }, [clients, query]);
 
   useEffect(() => {
@@ -71,10 +74,10 @@ export default function ClientMultiPicker({ clients, value, onChange, disabled }
               key={c.id}
               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-sm bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200"
             >
-              {c.athlete_name}
+              {c.first_name} {c.last_name ? `${c.last_name.charAt(0)}.` : ''}
               <button
                 type="button"
-                aria-label={`Remove ${c.athlete_name}`}
+                aria-label={`Remove ${c.first_name} ${c.last_name || ''}`}
                 onClick={() => removeClient(c.id)}
                 disabled={disabled}
                 className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800"
@@ -124,10 +127,7 @@ export default function ClientMultiPicker({ clients, value, onChange, disabled }
                         className="w-full flex items-center justify-between px-3 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700"
                       >
                         <span className="text-sm text-gray-900 dark:text-gray-100">
-                          {c.athlete_name}
-                          {c.hourly_rate ? (
-                            <span className="ml-2 text-gray-500 dark:text-gray-400">${c.hourly_rate}/hr</span>
-                          ) : null}
+                          {c.first_name} {c.last_name ? `${c.last_name.charAt(0)}.` : ''}
                         </span>
                         <span
                           className={

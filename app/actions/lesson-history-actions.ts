@@ -43,7 +43,8 @@ export async function getOutstandingLessons(): Promise<
         *,
         client:clients (
           id,
-          athlete_name,
+          first_name,
+          last_name,
           parent_email,
           parent_phone
         ),
@@ -53,7 +54,8 @@ export async function getOutstandingLessons(): Promise<
           amount_owed,
           client:clients (
             id,
-            athlete_name,
+            first_name,
+            last_name,
             parent_email,
             parent_phone
           )
@@ -216,6 +218,7 @@ export async function confirmLesson(
     revalidatePath('/outstanding-lessons');
     revalidatePath('/clients/[id]', 'page');
     revalidatePath('/calendar');
+    revalidatePath('/dashboard');
 
     return {
       success: true,
@@ -313,6 +316,7 @@ export async function markLessonNoShow(
     revalidatePath('/outstanding-lessons');
     revalidatePath('/clients/[id]', 'page');
     revalidatePath('/calendar');
+    revalidatePath('/dashboard');
 
     return {
       success: true,
@@ -330,6 +334,7 @@ export async function markLessonNoShow(
 /**
  * Get lesson history for a specific client
  * Returns completed lessons with invoice/payment information
+ * Handles both legacy (client_id) and new (lesson_participants) lesson structures
  */
 export async function getLessonHistory(
   clientId: string,
@@ -351,9 +356,31 @@ export async function getLessonHistory(
       };
     }
 
-    // Build query for lessons with invoices
-    // Include both Scheduled and Completed lessons
-    let query = supabase
+    // Query lesson_participants to find all lessons for this client
+    const { data: participants, error: participantsError } = await supabase
+      .from('lesson_participants')
+      .select('lesson_id, amount_owed, payment_status, paid_at')
+      .eq('client_id', clientId);
+
+    if (participantsError) {
+      console.error('Error fetching lesson participants:', participantsError);
+      return {
+        success: false,
+        error: ERROR_MESSAGES.LESSON_HISTORY.FETCH_FAILED,
+      };
+    }
+
+    if (!participants || participants.length === 0) {
+      return {
+        success: true,
+        data: [],
+      };
+    }
+
+    const lessonIds = participants.map(p => p.lesson_id);
+
+    // Now fetch the actual lessons and their details
+    let lessonsQuery = supabase
       .from('lessons')
       .select(
         `
@@ -366,76 +393,75 @@ export async function getLessonHistory(
         rate_at_booking,
         duration_hours,
         status,
-        client:clients (
-          athlete_name
-        ),
-        invoices (
-          id,
-          payment_status,
-          paid_at,
-          amount_due
-        )
+        coach_id
       `
       )
+      .in('id', lessonIds)
       .eq('coach_id', user.id)
-      .eq('client_id', clientId)
       .in('status', ['Scheduled', 'Completed']);
 
     // Apply date filters if provided
     if (filters?.dateFrom) {
-      query = query.gte('start_time', filters.dateFrom);
+      lessonsQuery = lessonsQuery.gte('start_time', filters.dateFrom);
     }
     if (filters?.dateTo) {
-      query = query.lte('start_time', filters.dateTo);
+      lessonsQuery = lessonsQuery.lte('start_time', filters.dateTo);
     }
 
     // Order by start time descending (newest first)
-    query = query.order('start_time', { ascending: false });
+    lessonsQuery = lessonsQuery.order('start_time', { ascending: false });
 
-    const { data: lessons, error: queryError } = await query;
+    const { data: lessons, error: lessonsError } = await lessonsQuery;
 
-    if (queryError) {
-      console.error('Error fetching lesson history:', queryError);
+    if (lessonsError) {
+      console.error('Error fetching lessons:', lessonsError);
       return {
         success: false,
         error: ERROR_MESSAGES.LESSON_HISTORY.FETCH_FAILED,
       };
     }
 
+    // Create a map of lesson IDs to their participant data for quick lookup
+    const participantMap = new Map(
+      participants.map(p => [p.lesson_id, { amount_owed: p.amount_owed, payment_status: p.payment_status, paid_at: p.paid_at }])
+    );
+
     // Transform data into LessonHistoryEntry format
     const lessonHistory: LessonHistoryEntry[] = (lessons || []).map((lesson: any) => {
-      const invoice = lesson.invoices?.[0]; // Get first invoice (should be one-to-one)
       const startTime = new Date(lesson.start_time);
+      const participantData = participantMap.get(lesson.id);
+      const clientCharge = participantData?.amount_owed || 0;
+      const paymentStatus = participantData?.payment_status || 'Pending';
+      const paidAt = participantData?.paid_at || null;
 
       return {
         lessonId: lesson.id,
-        invoiceId: invoice?.id || '',
+        invoiceId: '', // No invoices in this system
         date: startTime.toISOString().split('T')[0], // YYYY-MM-DD
         startTime: lesson.start_time,
         endTime: lesson.end_time,
         serviceType: lesson.title,
         duration: lesson.duration_hours || 0,
-        rate: lesson.rate_at_booking,
+        charge: clientCharge,
         lessonStatus: lesson.status,
-        paymentStatus: invoice?.payment_status || 'Pending',
-        paidAt: invoice?.paid_at || null,
+        paymentStatus: paymentStatus,
+        paidAt: paidAt,
         notes: lesson.description || undefined,
         location: lesson.location || undefined,
-        clientName: lesson.client?.athlete_name || '',
       };
     });
 
     // Apply payment status filter if provided
-    let filteredHistory = lessonHistory;
+    let finalHistory = lessonHistory;
     if (filters?.paymentStatus && filters.paymentStatus !== 'All') {
-      filteredHistory = lessonHistory.filter(
+      finalHistory = lessonHistory.filter(
         (entry) => entry.paymentStatus === filters.paymentStatus
       );
     }
 
     return {
       success: true,
-      data: filteredHistory,
+      data: finalHistory,
     };
   } catch (error: any) {
     console.error('Unexpected error in getLessonHistory:', error);
@@ -448,7 +474,7 @@ export async function getLessonHistory(
 
 /**
  * Calculate unpaid balance for a specific client
- * Sums all invoices with Pending or Overdue status
+ * Sums all lesson_participants amount_owed for COMPLETED lessons (confirmed by coach)
  */
 export async function calculateUnpaidBalance(
   clientId: string
@@ -469,27 +495,77 @@ export async function calculateUnpaidBalance(
       };
     }
 
-    // Query invoices with pending/overdue status
-    const { data: invoices, error: queryError } = await supabase
-      .from('invoices')
-      .select('amount_due')
-      .eq('coach_id', user.id)
-      .eq('client_id', clientId)
-      .in('payment_status', ['Pending', 'Overdue']);
+    console.log(`[calculateUnpaidBalance] Calculating balance for client: ${clientId}, user: ${user.id}`);
 
-    if (queryError) {
-      console.error('Error calculating unpaid balance:', queryError);
+    // Step 1: Get all lesson_participants for this client with Pending payment status
+    const { data: participants, error: pError } = await supabase
+      .from('lesson_participants')
+      .select('lesson_id, amount_owed, payment_status')
+      .eq('client_id', clientId)
+      .eq('payment_status', 'Pending');
+
+    if (pError) {
+      console.error('Error fetching lesson_participants:', pError);
       return {
         success: false,
         error: ERROR_MESSAGES.PAYMENT.CALCULATE_FAILED,
       };
     }
 
-    // Sum all unpaid amounts
-    const balance = (invoices || []).reduce(
-      (sum, invoice) => sum + (invoice.amount_due || 0),
-      0
+    console.log(`[calculateUnpaidBalance] Found ${participants?.length || 0} lesson_participants`);
+    if (participants && participants.length > 0) {
+      console.log('[calculateUnpaidBalance] Participants:', participants);
+    }
+
+    if (!participants || participants.length === 0) {
+      return {
+        success: true,
+        data: { balance: 0 },
+      };
+    }
+
+    // Step 2: Get all the lesson IDs
+    const lessonIds = participants.map(p => p.lesson_id);
+    console.log(`[calculateUnpaidBalance] Lesson IDs: ${lessonIds.join(', ')}`);
+
+    // Step 3: Fetch lessons to check status and coach ownership
+    const { data: lessons, error: lError } = await supabase
+      .from('lessons')
+      .select('id, status, coach_id')
+      .in('id', lessonIds)
+      .eq('coach_id', user.id);
+
+    if (lError) {
+      console.error('Error fetching lessons:', lError);
+      return {
+        success: false,
+        error: ERROR_MESSAGES.PAYMENT.CALCULATE_FAILED,
+      };
+    }
+
+    console.log(`[calculateUnpaidBalance] Found ${lessons?.length || 0} lessons matching coach`);
+    if (lessons && lessons.length > 0) {
+      console.log('[calculateUnpaidBalance] Lessons:', lessons);
+    }
+
+    // Step 4: Create a map of completed lesson IDs
+    const completedLessonIds = new Set(
+      (lessons || [])
+        .filter(l => l.status === 'Completed')
+        .map(l => l.id)
     );
+
+    console.log(`[calculateUnpaidBalance] Completed lesson IDs: ${Array.from(completedLessonIds).join(', ')}`);
+
+    // Step 5: Sum up amounts for completed lessons
+    const balance = (participants || [])
+      .filter(p => completedLessonIds.has(p.lesson_id))
+      .reduce((sum, p) => sum + (p.amount_owed || 0), 0);
+
+    console.log(`[calculateUnpaidBalance] Final balance: ${balance}`);
+
+    // Also return debug info temporarily
+    console.log(`[DEBUG] Participants count: ${participants?.length}, Completed lessons: ${completedLessonIds.size}, Balance: ${balance}`);
 
     return {
       success: true,
@@ -509,7 +585,8 @@ export async function calculateUnpaidBalance(
  * Updates invoice payment_status to 'Paid' and sets paid_at timestamp
  */
 export async function markLessonAsPaid(
-  lessonId: string
+  lessonId: string,
+  clientId?: string
 ): Promise<LessonHistoryActionResponse> {
   try {
     const supabase = await createClient();
@@ -550,16 +627,22 @@ export async function markLessonAsPaid(
       };
     }
 
-    // Update invoice to Paid status
-    const { error: updateError } = await supabase
-      .from('invoices')
+    // Update lesson_participants for this lesson to mark as paid
+    // If clientId provided, only update that client's participant record
+    // Otherwise, update all participants for the lesson
+    let updateQuery = supabase
+      .from('lesson_participants')
       .update({
         payment_status: 'Paid',
         paid_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       })
-      .eq('lesson_id', lessonId)
-      .eq('coach_id', user.id);
+      .eq('lesson_id', lessonId);
+    
+    if (clientId) {
+      updateQuery = updateQuery.eq('client_id', clientId);
+    }
+
+    const { error: updateError } = await updateQuery;
 
     if (updateError) {
       console.error('Error marking lesson as paid:', updateError);
@@ -579,6 +662,93 @@ export async function markLessonAsPaid(
     };
   } catch (error: any) {
     console.error('Unexpected error in markLessonAsPaid:', error);
+    return {
+      success: false,
+      error: ERROR_MESSAGES.GENERIC.UNEXPECTED_ERROR,
+    };
+  }
+}
+
+/**
+ * Mark a lesson participant as unpaid
+ * Sets payment_status back to Pending and clears paid_at
+ */
+export async function markLessonAsUnpaid(
+  lessonId: string,
+  clientId?: string
+): Promise<LessonHistoryActionResponse> {
+  try {
+    const supabase = await createClient();
+
+    // Verify authentication
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return {
+        success: false,
+        error: ERROR_MESSAGES.AUTH.NOT_LOGGED_IN,
+      };
+    }
+
+    // Fetch the lesson to validate it exists and belongs to this coach
+    const { data: lesson, error: fetchError } = await supabase
+      .from('lessons')
+      .select('status')
+      .eq('id', lessonId)
+      .eq('coach_id', user.id)
+      .single();
+
+    if (fetchError || !lesson) {
+      return {
+        success: false,
+        error: ERROR_MESSAGES.LESSON.NOT_FOUND,
+      };
+    }
+
+    // Validate lesson is completed
+    if (lesson.status !== 'Completed') {
+      return {
+        success: false,
+        error: ERROR_MESSAGES.PAYMENT.NOT_COMPLETED,
+      };
+    }
+
+    // Update lesson_participants to mark as unpaid
+    let updateQuery = supabase
+      .from('lesson_participants')
+      .update({
+        payment_status: 'Pending',
+        paid_at: null,
+      })
+      .eq('lesson_id', lessonId);
+    
+    if (clientId) {
+      updateQuery = updateQuery.eq('client_id', clientId);
+    }
+
+    const { error: updateError } = await updateQuery;
+
+    if (updateError) {
+      console.error('Error marking lesson as unpaid:', updateError);
+      return {
+        success: false,
+        error: 'Failed to mark lesson as unpaid',
+      };
+    }
+
+    // Revalidate pages that display payment data
+    revalidatePath('/clients/[id]', 'page');
+    revalidatePath('/dashboard');
+
+    return {
+      success: true,
+      message: 'Lesson marked as unpaid',
+    };
+  } catch (error: any) {
+    console.error('Unexpected error in markLessonAsUnpaid:', error);
     return {
       success: false,
       error: ERROR_MESSAGES.GENERIC.UNEXPECTED_ERROR,
@@ -609,25 +779,57 @@ export async function markAllLessonsPaid(
       };
     }
 
-    // First, fetch all pending invoices to get count and total
-    const { data: pendingInvoices, error: fetchError } = await supabase
-      .from('invoices')
-      .select('id, amount_due')
-      .eq('coach_id', user.id)
+    // First, get all lesson_participants with pending payments for completed lessons
+    // Step 1: Get participant records for this client with pending payment status
+    const { data: participants, error: participantError } = await supabase
+      .from('lesson_participants')
+      .select('lesson_id, amount_owed')
       .eq('client_id', clientId)
       .eq('payment_status', 'Pending');
 
-    if (fetchError) {
-      console.error('Error fetching pending invoices:', fetchError);
+    if (participantError) {
+      console.error('Error fetching lesson participants:', participantError);
       return {
         success: false,
         error: ERROR_MESSAGES.PAYMENT.BULK_UPDATE_FAILED,
       };
     }
 
-    const count = pendingInvoices?.length || 0;
-    const totalAmount = (pendingInvoices || []).reduce(
-      (sum, inv) => sum + (inv.amount_due || 0),
+    if (!participants || participants.length === 0) {
+      return {
+        success: true,
+        data: { count: 0, totalAmount: 0 },
+        message: 'No pending payments to update.',
+      };
+    }
+
+    // Step 2: Get the lessons to verify they're completed and belong to this coach
+    const lessonIds = participants.map(p => p.lesson_id);
+    const { data: lessons, error: lessonsError } = await supabase
+      .from('lessons')
+      .select('id')
+      .eq('coach_id', user.id)
+      .eq('status', 'Completed')
+      .in('id', lessonIds);
+
+    if (lessonsError) {
+      console.error('Error fetching lessons:', lessonsError);
+      return {
+        success: false,
+        error: ERROR_MESSAGES.PAYMENT.BULK_UPDATE_FAILED,
+      };
+    }
+
+    const completedLessonIds = (lessons || []).map(l => l.id);
+    
+    // Filter participants to only those with completed lessons
+    const participantsToPay = participants.filter(p => 
+      completedLessonIds.includes(p.lesson_id)
+    );
+
+    const count = participantsToPay.length;
+    const totalAmount = participantsToPay.reduce(
+      (sum, p) => sum + (p.amount_owed || 0),
       0
     );
 
@@ -635,21 +837,19 @@ export async function markAllLessonsPaid(
       return {
         success: true,
         data: { count: 0, totalAmount: 0 },
-        message: 'No pending invoices to update.',
+        message: 'No pending payments for completed lessons.',
       };
     }
 
-    // Update all pending invoices to Paid
-    const now = new Date().toISOString();
+    // Update all lesson_participants for completed lessons to mark as paid
     const { error: updateError } = await supabase
-      .from('invoices')
+      .from('lesson_participants')
       .update({
         payment_status: 'Paid',
-        paid_at: now,
-        updated_at: now,
+        paid_at: new Date().toISOString(),
       })
-      .eq('coach_id', user.id)
       .eq('client_id', clientId)
+      .in('lesson_id', completedLessonIds)
       .eq('payment_status', 'Pending');
 
     if (updateError) {

@@ -23,6 +23,8 @@ export interface LessonParticipant {
   lesson_id: string;
   client_id: string;
   amount_owed: number;
+  payment_status: PaymentStatus;
+  paid_at: string | null;
   created_at: string;
 }
 
@@ -56,6 +58,11 @@ export interface Lesson {
   cancelled_at?: string | null;
   cancelled_reason?: string | null;
 
+  // Recurring Lessons
+  is_recurring?: boolean; // True if part of a recurring series
+  recurrence_parent_id?: string | null; // References first lesson in series (null for parent)
+  recurrence_end_date?: string | null; // End date for recurring series (1 year from start)
+
   // Timestamps
   created_at: string;
   updated_at: string;
@@ -73,6 +80,7 @@ export interface CreateLessonData {
   end_time: string; // ISO 8601 timestamp
   location?: string;
   custom_hourly_rate?: number; // Only for custom lessons (lesson_type_id = null)
+  is_recurring?: boolean; // True to create a recurring series (weekly for 1 year)
 }
 
 /**
@@ -150,7 +158,8 @@ export interface UpdateInvoiceData {
 export interface LessonWithClient extends Lesson {
   client: {
     id: string;
-    athlete_name: string;
+    first_name: string;
+    last_name: string;
     parent_email: string;
     parent_phone: string;
   } | null;
@@ -160,7 +169,8 @@ export interface LessonWithClient extends Lesson {
     amount_owed: number;
     client: {
       id: string;
-      athlete_name: string;
+      first_name: string;
+      last_name: string;
       parent_email: string;
       parent_phone: string;
     };
@@ -189,7 +199,8 @@ export interface InvoiceWithDetails extends Invoice {
   };
   client: {
     id: string;
-    athlete_name: string;
+    first_name: string;
+    last_name: string;
     parent_email: string;
   };
 }

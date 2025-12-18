@@ -10,15 +10,19 @@ export type ValidationError = {
 };
 
 export function validateClientData(data: {
-  athlete_name: string;
+  first_name: string;
+  last_name: string;
   parent_email: string;
   parent_phone: string;
-  hourly_rate: number;
 }) {
   const errors: ValidationError[] = [];
 
-  if (!data.athlete_name || !data.athlete_name.trim()) {
-    errors.push({ field: 'athlete_name', message: ERROR_MESSAGES.CLIENT.NAME_REQUIRED });
+  if (!data.first_name || !data.first_name.trim()) {
+    errors.push({ field: 'first_name', message: 'First name is required.' });
+  }
+
+  if (!data.last_name || !data.last_name.trim()) {
+    errors.push({ field: 'last_name', message: 'Last name is required.' });
   }
 
   if (!data.parent_email || !data.parent_email.trim()) {
@@ -31,10 +35,6 @@ export function validateClientData(data: {
     errors.push({ field: 'parent_phone', message: ERROR_MESSAGES.CLIENT.PHONE_REQUIRED });
   } else if (!VALIDATION_PATTERNS.PHONE.test(data.parent_phone)) {
     errors.push({ field: 'parent_phone', message: ERROR_MESSAGES.CLIENT.INVALID_PHONE });
-  }
-
-  if (typeof data.hourly_rate !== 'number' || data.hourly_rate <= 0) {
-    errors.push({ field: 'hourly_rate', message: ERROR_MESSAGES.CLIENT.INVALID_RATE });
   }
 
   return errors;

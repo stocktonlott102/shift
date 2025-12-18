@@ -16,10 +16,10 @@ interface ClientFormProps {
 export default function ClientForm({ coachId, client, onSuccess, onCancel }: ClientFormProps) {
   const isEditMode = !!client;
 
-  const [athleteName, setAthleteName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [parentEmail, setParentEmail] = useState('');
   const [parentPhone, setParentPhone] = useState('');
-  const [hourlyRate, setHourlyRate] = useState('');
   const [notes, setNotes] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,10 +28,10 @@ export default function ClientForm({ coachId, client, onSuccess, onCancel }: Cli
   // Pre-populate form in edit mode
   useEffect(() => {
     if (client) {
-      setAthleteName(client.athlete_name);
+      setFirstName(client.first_name);
+      setLastName(client.last_name);
       setParentEmail(client.parent_email);
       setParentPhone(client.parent_phone);
-      setHourlyRate(client.hourly_rate.toString());
       setNotes(client.notes || '');
     }
   }, [client]);
@@ -43,12 +43,11 @@ export default function ClientForm({ coachId, client, onSuccess, onCancel }: Cli
     setIsLoading(true);
 
     // Client-side validation using shared validator
-    const hourly = parseFloat(hourlyRate || '0');
     const validationErrors = validateClientData({
-      athlete_name: athleteName.trim(),
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
       parent_email: parentEmail.trim().toLowerCase(),
       parent_phone: parentPhone.trim(),
-      hourly_rate: hourly,
     });
 
     if (validationErrors.length > 0) {
@@ -63,20 +62,20 @@ export default function ClientForm({ coachId, client, onSuccess, onCancel }: Cli
       if (isEditMode && client) {
         // Update existing client
         result = await updateClient(client.id, {
-          athlete_name: athleteName.trim(),
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
           parent_email: parentEmail.trim().toLowerCase(),
           parent_phone: parentPhone.trim(),
-          hourly_rate: parseFloat(hourlyRate),
           notes: notes.trim() || undefined,
         });
       } else {
         // Create new client
         result = await addClient({
           coach_id: coachId,
-          athlete_name: athleteName.trim(),
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
           parent_email: parentEmail.trim().toLowerCase(),
           parent_phone: parentPhone.trim(),
-          hourly_rate: parseFloat(hourlyRate),
           notes: notes.trim() || undefined,
         });
       }
@@ -92,10 +91,10 @@ export default function ClientForm({ coachId, client, onSuccess, onCancel }: Cli
 
       if (!isEditMode) {
         // Reset form only in create mode
-        setAthleteName('');
+        setFirstName('');
+        setLastName('');
         setParentEmail('');
         setParentPhone('');
-        setHourlyRate('');
         setNotes('');
       }
 
@@ -134,23 +133,44 @@ export default function ClientForm({ coachId, client, onSuccess, onCancel }: Cli
           </div>
         )}
 
-        {/* Athlete Name */}
+        {/* First Name */}
         <div>
           <label
-            htmlFor="athleteName"
+            htmlFor="firstName"
             className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
           >
-            Athlete Name <span className="text-red-500">*</span>
+            First Name <span className="text-red-500">*</span>
           </label>
           <input
-            id="athleteName"
-            name="athleteName"
+            id="firstName"
+            name="firstName"
             type="text"
             required
-            value={athleteName}
-            onChange={(e) => setAthleteName(e.target.value)}
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
             className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
-            placeholder="Sarah Johnson"
+            placeholder="Sarah"
+            disabled={isLoading}
+          />
+        </div>
+
+        {/* Last Name */}
+        <div>
+          <label
+            htmlFor="lastName"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+          >
+            Last Name <span className="text-red-500">*</span>
+          </label>
+          <input
+            id="lastName"
+            name="lastName"
+            type="text"
+            required
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
+            placeholder="Johnson"
             disabled={isLoading}
           />
         </div>
@@ -200,37 +220,6 @@ export default function ClientForm({ coachId, client, onSuccess, onCancel }: Cli
           />
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             Used for automated SMS lesson reminders
-          </p>
-        </div>
-
-        {/* Hourly Rate */}
-        <div>
-          <label
-            htmlFor="hourlyRate"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-          >
-            Hourly Rate (USD) <span className="text-red-500">*</span>
-          </label>
-          <div className="relative">
-            <span className="absolute left-4 top-3 text-gray-500 dark:text-gray-400">
-              $
-            </span>
-            <input
-              id="hourlyRate"
-              name="hourlyRate"
-              type="number"
-              step="0.01"
-              min="0"
-              required
-              value={hourlyRate}
-              onChange={(e) => setHourlyRate(e.target.value)}
-              className="w-full pl-8 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
-              placeholder="75.00"
-              disabled={isLoading}
-            />
-          </div>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Your standard rate per hour of coaching
           </p>
         </div>
 

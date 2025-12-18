@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { getClients } from '@/app/actions/client-actions';
+import { calculateUnpaidBalance } from '@/app/actions/lesson-history-actions';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 
@@ -33,6 +34,15 @@ export default async function ClientsPage() {
 
   const clients = result.success ? result.data : [];
 
+  // Fetch unpaid balances for all clients
+  const clientsWithBalances = await Promise.all(
+    clients.map(async (client) => {
+      const balanceResult = await calculateUnpaidBalance(client.id);
+      const balance = balanceResult.success && balanceResult.data ? balanceResult.data.balance : 0;
+      return { ...client, unpaidBalance: balance };
+    })
+  );
+
   return (
     <>
       <Navigation />
@@ -57,7 +67,7 @@ export default async function ClientsPage() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Empty State */}
-        {clients.length === 0 ? (
+        {clientsWithBalances.length === 0 ? (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-12 text-center">
             <div className="flex flex-col items-center justify-center space-y-6">
               {/* Icon */}
@@ -101,13 +111,13 @@ export default async function ClientsPage() {
             {/* Clients Count */}
             <div className="mb-6">
               <p className="text-gray-600 dark:text-gray-400">
-                {clients.length} {clients.length === 1 ? 'Client' : 'Clients'}
+                {clientsWithBalances.length} {clientsWithBalances.length === 1 ? 'Client' : 'Clients'}
               </p>
             </div>
 
             {/* Clients Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {clients.map((client) => (
+              {clientsWithBalances.map((client) => (
                 <Link
                   key={client.id}
                   href={`/clients/${client.id}`}
@@ -118,7 +128,7 @@ export default async function ClientsPage() {
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                          {client.athlete_name}
+                          {client.first_name} {client.last_name ? `${client.last_name.charAt(0)}.` : ''}
                         </h3>
                       </div>
                       <svg
@@ -174,23 +184,16 @@ export default async function ClientsPage() {
                         <span>{client.parent_phone}</span>
                       </div>
 
-                      {/* Hourly Rate */}
-                      <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
+                      {/* Outstanding Balance */}
+                      <div className="flex items-center justify-between pt-3 mt-3 border-t border-gray-200 dark:border-gray-700">
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                          Hourly Rate
+                          Outstanding Balance
                         </span>
-                        <span className="text-lg font-bold text-indigo-600 dark:text-indigo-400">
-                          ${parseFloat(client.hourly_rate).toFixed(2)}
+                        <span className={`text-lg font-bold ${client.unpaidBalance > 0 ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}>
+                          ${client.unpaidBalance.toFixed(2)}
                         </span>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Status Badge */}
-                  <div className="px-6 py-3 bg-gray-50 dark:bg-gray-700/50">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                      Active
-                    </span>
                   </div>
                 </Link>
               ))}

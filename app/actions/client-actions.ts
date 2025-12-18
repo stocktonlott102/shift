@@ -13,10 +13,10 @@ import { ERROR_MESSAGES } from '@/lib/constants/messages';
  */
 export async function addClient(formData: {
   coach_id: string;
-  athlete_name: string;
+  first_name: string;
+  last_name: string;
   parent_email: string;
   parent_phone: string;
-  hourly_rate: number;
   notes?: string;
 }) {
   try {
@@ -47,10 +47,10 @@ export async function addClient(formData: {
 
     // Server-side validation using shared validator
     const validationErrors = validateClientData({
-      athlete_name: formData.athlete_name,
+      first_name: formData.first_name,
+      last_name: formData.last_name,
       parent_email: formData.parent_email,
       parent_phone: formData.parent_phone,
-      hourly_rate: formData.hourly_rate,
     });
 
     if (validationErrors.length > 0) {
@@ -65,12 +65,11 @@ export async function addClient(formData: {
       .from('clients')
       .insert({
         coach_id: formData.coach_id,
-        athlete_name: formData.athlete_name,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
         parent_email: formData.parent_email,
         parent_phone: formData.parent_phone,
-        hourly_rate: formData.hourly_rate,
         notes: formData.notes || null,
-        status: 'active',
       })
       .select()
       .single();
@@ -125,8 +124,7 @@ export async function getClients() {
     const { data, error } = await supabase
       .from('clients')
       .select('*')
-      .eq('status', 'active')
-      .order('created_at', { ascending: false });
+      .order('first_name', { ascending: true });
 
     if (error) {
       console.error('Database error fetching clients:', error);
@@ -179,10 +177,21 @@ export async function getClientById(clientId: string) {
       .single();
 
     if (error) {
+      // Check if this is a "no rows returned" error (which is expected behavior)
+      if (error.code === 'PGRST116' || (!error.code && !error.message)) {
+        // Silent failure - client doesn't exist or user doesn't have access
+        // This is normal and will result in a 404 page
+        console.debug('Client not found for ID:', clientId);
+        return {
+          success: false,
+          error: 'Client not found.',
+        };
+      }
+      // Log other errors
       console.error('Database error fetching client:', error);
       return {
         success: false,
-        error: 'Failed to fetch client details.',
+        error: `Failed to fetch client details: ${error.message || 'Unknown error'}`,
       };
     }
 
@@ -201,7 +210,7 @@ export async function getClientById(clientId: string) {
     console.error('Unexpected error fetching client:', error);
     return {
       success: false,
-      error: 'An unexpected error occurred.',
+      error: `An unexpected error occurred: ${error.message || 'Please try again.'}`,
     };
   }
 }
@@ -212,10 +221,10 @@ export async function getClientById(clientId: string) {
 export async function updateClient(
   clientId: string,
   formData: {
-    athlete_name: string;
+    first_name: string;
+    last_name: string;
     parent_email: string;
     parent_phone: string;
-    hourly_rate: number;
     notes?: string;
   }
 ) {
@@ -237,10 +246,10 @@ export async function updateClient(
 
     // Server-side validation using shared validator
     const validationErrors = validateClientData({
-      athlete_name: formData.athlete_name,
+      first_name: formData.first_name,
+      last_name: formData.last_name,
       parent_email: formData.parent_email,
       parent_phone: formData.parent_phone,
-      hourly_rate: formData.hourly_rate,
     });
 
     if (validationErrors.length > 0) {
@@ -254,10 +263,10 @@ export async function updateClient(
     const { data, error } = await supabase
       .from('clients')
       .update({
-        athlete_name: formData.athlete_name,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
         parent_email: formData.parent_email,
         parent_phone: formData.parent_phone,
-        hourly_rate: formData.hourly_rate,
         notes: formData.notes || null,
       })
       .eq('id', clientId)
@@ -291,10 +300,10 @@ export async function updateClient(
 }
 
 /**
- * Server Action: Delete (archive) a client
+ * Server Action: Delete a client
  *
- * Note: We use soft delete by setting status to 'archived' rather than
- * permanently deleting to preserve data integrity and allow recovery
+ * Permanently deletes the client record from the database.
+ * Related lessons and lesson_participants will be cascade deleted.
  */
 export async function deleteClient(clientId: string) {
   try {
@@ -313,13 +322,12 @@ export async function deleteClient(clientId: string) {
       };
     }
 
-    // Soft delete: Update status to 'archived' instead of deleting
-    const { data, error } = await supabase
+    // Delete the client (cascade will handle related records)
+    const { error } = await supabase
       .from('clients')
-      .update({ status: 'archived' })
+      .delete()
       .eq('id', clientId)
-      .select()
-      .single();
+      .eq('coach_id', user.id);
 
     if (error) {
       console.error('Database error deleting client:', error);
@@ -335,7 +343,7 @@ export async function deleteClient(clientId: string) {
 
     return {
       success: true,
-      data,
+      message: 'Client deleted successfully',
     };
   } catch (error: any) {
     console.error('Unexpected error deleting client:', error);

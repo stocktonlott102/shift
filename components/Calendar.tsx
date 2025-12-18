@@ -493,7 +493,10 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
                                 onSelectEvent?.({ id: ev.id, resource: ev.resource });
                               }}
                             >
-                              {ev.title}
+                              <span className="flex items-center gap-1">
+                                {ev.resource.is_recurring && <span className="text-xs">↻</span>}
+                                <span>{ev.title}</span>
+                              </span>
                             </div>
                           );
                         })}
@@ -548,7 +551,10 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
                         onSelectEvent?.({ id: ev.id, resource: ev.resource });
                       }}
                     >
-                      {ev.title}
+                      <span className="flex items-center gap-1">
+                        {ev.resource.is_recurring && <span className="text-xs">↻</span>}
+                        <span>{ev.title}</span>
+                      </span>
                     </div>
                   );
                 })}

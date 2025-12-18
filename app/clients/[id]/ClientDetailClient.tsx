@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import ClientForm from '@/components/ClientForm';
 import LessonHistoryTable from '@/components/LessonHistoryTable';
+import RecurringLessonsTable from '@/components/RecurringLessonsTable';
 import EditLessonForm from '@/components/EditLessonForm';
 import { deleteClient, getClients } from '@/app/actions/client-actions';
 import { getLessonHistory, calculateUnpaidBalance } from '@/app/actions/lesson-history-actions';
@@ -69,6 +70,15 @@ export default function ClientDetailClient({ client, coachId }: ClientDetailClie
     }
   };
 
+  const handleEditSeries = async (seriesId: string) => {
+    // seriesId is the recurrence_parent_id (first lesson in series)
+    const result = await getLessonById(seriesId);
+    if (result.success && result.data) {
+      setSelectedLesson(result.data);
+      setShowEditLesson(true);
+    }
+  };
+
   const handleEditLessonSuccess = async () => {
     setShowEditLesson(false);
     setSelectedLesson(null);
@@ -124,15 +134,12 @@ export default function ClientDetailClient({ client, coachId }: ClientDetailClie
           <div className="flex items-start justify-between">
             <div>
               <h2 className="text-3xl font-bold text-white mb-2">
-                {client.athlete_name}
+                {client.first_name} {client.last_name ? `${client.last_name.charAt(0)}.` : ''}
               </h2>
               <p className="text-indigo-100 text-sm">
                 Client since {new Date(client.created_at).toLocaleDateString()}
               </p>
             </div>
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-              Active
-            </span>
           </div>
         </div>
 
@@ -200,24 +207,6 @@ export default function ClientDetailClient({ client, coachId }: ClientDetailClie
           </div>
         </div>
 
-        {/* Billing Information */}
-        <div className="px-6 py-6 sm:px-8 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Billing
-          </h3>
-          <div>
-            <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
-              Hourly Rate
-            </label>
-            <div className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">
-              ${parseFloat(client.hourly_rate.toString()).toFixed(2)}
-              <span className="text-lg text-gray-500 dark:text-gray-400 font-normal ml-2">
-                / hour
-              </span>
-            </div>
-          </div>
-        </div>
-
         {/* Coach Notes */}
         <div className="px-6 py-6 sm:px-8">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
@@ -251,6 +240,14 @@ export default function ClientDetailClient({ client, coachId }: ClientDetailClie
             Delete Client
           </button>
         </div>
+      </div>
+
+      {/* Recurring Lessons Section */}
+      <div className="mt-8">
+        <RecurringLessonsTable
+          clientId={client.id}
+          onEditSeries={handleEditSeries}
+        />
       </div>
 
       {/* Lesson History Section */}
@@ -296,7 +293,12 @@ export default function ClientDetailClient({ client, coachId }: ClientDetailClie
                   Delete Client
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  Are you sure you want to delete <span className="font-semibold">{client.athlete_name}</span>?
+                  Are you sure you want to delete{' '}
+                  <span className="font-semibold">
+                    {client.first_name}
+                    {client.last_name ? ` ${client.last_name}` : ''}
+                  </span>
+                  ?
                   This will archive the client and they will no longer appear in your active clients list.
                 </p>
                 {deleteError && (
