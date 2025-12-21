@@ -344,7 +344,7 @@ export default function BookLessonForm({
           <DatePicker
             id="startTime"
             selected={startTime}
-            onChange={(date) => setStartTime(date)}
+            onChange={(date: Date | null) => setStartTime(date)}
             showTimeSelect
             timeFormat="h:mm aa"
             timeIntervals={5}
@@ -431,7 +431,7 @@ export default function BookLessonForm({
               <DatePicker
                 id="endTime"
                 selected={endTime}
-                onChange={(date) => setEndTime(date)}
+                onChange={(date: Date | null) => setEndTime(date)}
                 showTimeSelect
                 timeFormat="h:mm aa"
                 timeIntervals={5}
