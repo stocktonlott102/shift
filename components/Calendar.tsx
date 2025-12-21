@@ -14,7 +14,8 @@ interface CalendarProps {
 
 // Configuration
 const HOUR_HEIGHT_PX = 64; // pixels per hour (matches CSS var)
-const MINUTES_PER_SLOT = 15;
+const SNAP_INTERVAL_MINUTES = 15; // Snap clicks to 15-minute intervals
+const DEFAULT_SLOT_DURATION_MINUTES = 30; // Default lesson duration when clicking
 
 function buildVisibleRange(date: Date) {
   const start = new Date(date);
@@ -114,6 +115,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
   const [now, setNow] = useState(new Date());
   const [currentDate, setCurrentDate] = useState(date);
   const [view, setView] = useState<CalendarView>('day');
+  const [hoveredSlot, setHoveredSlot] = useState<{ top: number; dayIndex?: number } | null>(null);
 
   // Week view specific data
   const weekStart = useMemo(() => getWeekStart(currentDate), [currentDate]);
@@ -197,14 +199,31 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
     return () => clearInterval(id);
   }, []);
 
+  // Calculate slot position from mouse/touch event
+  const calculateSlotPosition = useCallback((clientY: number, dayIndex?: number) => {
+    if (!containerRef.current) return null;
+    const rect = containerRef.current.getBoundingClientRect();
+
+    // Simply use clientY relative to the element's top position
+    const y = clientY - rect.top;
+
+    const minutesFromStart = (y / HOUR_HEIGHT_PX) * 60;
+    const snapped = Math.round(minutesFromStart / SNAP_INTERVAL_MINUTES) * SNAP_INTERVAL_MINUTES;
+    const top = (snapped / 60) * HOUR_HEIGHT_PX;
+
+    return { top, snapped, dayIndex };
+  }, []);
+
   const handleGridClick = useCallback(
     (e: React.MouseEvent, dayIndex?: number) => {
       if (!containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
+
+      // Simply use clientY relative to the element's top position
       const y = e.clientY - rect.top;
 
       const minutesFromStart = (y / HOUR_HEIGHT_PX) * 60;
-      const snapped = Math.round(minutesFromStart / MINUTES_PER_SLOT) * MINUTES_PER_SLOT;
+      const snapped = Math.round(minutesFromStart / SNAP_INTERVAL_MINUTES) * SNAP_INTERVAL_MINUTES;
 
       let slotStart: Date;
       if (view === 'week' && dayIndex !== undefined) {
@@ -218,11 +237,36 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
         slotStart = new Date(visibleStart.getTime() + snapped * 60 * 1000);
       }
 
-      const slotEnd = new Date(slotStart.getTime() + MINUTES_PER_SLOT * 60 * 1000);
+      const slotEnd = new Date(slotStart.getTime() + DEFAULT_SLOT_DURATION_MINUTES * 60 * 1000);
       onSelectSlot?.({ start: slotStart, end: slotEnd });
     },
     [onSelectSlot, visibleStart, view, weekDays]
   );
+
+  const handleMouseMove = useCallback((e: React.MouseEvent, dayIndex?: number) => {
+    const position = calculateSlotPosition(e.clientY, dayIndex);
+    if (position) {
+      setHoveredSlot({ top: position.top, dayIndex: position.dayIndex });
+    }
+  }, [calculateSlotPosition]);
+
+  const handleMouseLeave = useCallback(() => {
+    setHoveredSlot(null);
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent, dayIndex?: number) => {
+    if (e.touches.length > 0) {
+      const touch = e.touches[0];
+      const position = calculateSlotPosition(touch.clientY, dayIndex);
+      if (position) {
+        setHoveredSlot({ top: position.top, dayIndex: position.dayIndex });
+      }
+    }
+  }, [calculateSlotPosition]);
+
+  const handleTouchEnd = useCallback(() => {
+    setHoveredSlot(null);
+  }, []);
 
   const nowTop = (() => {
     const m = minutesBetween(visibleStart, now);
@@ -458,11 +502,11 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
                 </div>
 
                 {/* Week day columns */}
-                <div className="flex">
+                <div className="flex" ref={containerRef}>
                   {weekDays.map((day, dayIdx) => {
                     const isToday = isSameDay(day, now);
                     const dayEventsForCol = weekEvents[dayIdx] || [];
-                    
+
                     return (
                       <div
                         key={dayIdx}
@@ -470,6 +514,10 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
                           isToday ? 'bg-indigo-50/30 dark:bg-indigo-900/10' : ''
                         }`}
                         onClick={(e) => handleGridClick(e, dayIdx)}
+                        onMouseMove={(e) => handleMouseMove(e, dayIdx)}
+                        onMouseLeave={handleMouseLeave}
+                        onTouchMove={(e) => handleTouchMove(e, dayIdx)}
+                        onTouchEnd={handleTouchEnd}
                       >
                         {/* Time grid rows */}
                         {timeSlots.map((slot, idx) => (
@@ -479,6 +527,19 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
                             style={{ height: slot.isHalfSlot ? `${HOUR_HEIGHT_PX / 2}px` : `${HOUR_HEIGHT_PX}px` }}
                           />
                         ))}
+
+                        {/* Hover indicator for this day column */}
+                        {hoveredSlot && hoveredSlot.dayIndex === dayIdx && (
+                          <div
+                            className="absolute left-0 right-0 pointer-events-none rounded-md"
+                            style={{
+                              top: `${hoveredSlot.top}px`,
+                              height: `${(DEFAULT_SLOT_DURATION_MINUTES / 60) * HOUR_HEIGHT_PX}px`,
+                              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                              border: '2px solid rgba(59, 130, 246, 0.3)',
+                            }}
+                          />
+                        )}
 
                         {/* Events for this day */}
                         {dayEventsForCol.map((ev) => {
@@ -528,7 +589,15 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
             </div>
 
             <div className="flex-1 min-w-0">
-              <div className="relative scheduler-grid" ref={containerRef} onClick={handleGridClick}>
+              <div
+                className="relative scheduler-grid"
+                ref={containerRef}
+                onClick={handleGridClick}
+                onMouseMove={handleMouseMove}
+                onMouseLeave={handleMouseLeave}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+              >
                 <div>
                   {timeSlots.map((slot, idx) => (
                     <div
@@ -538,6 +607,19 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
                     />
                   ))}
                 </div>
+
+                {/* Hover indicator */}
+                {hoveredSlot && hoveredSlot.dayIndex === undefined && (
+                  <div
+                    className="absolute left-0 right-0 pointer-events-none rounded-md"
+                    style={{
+                      top: `${hoveredSlot.top}px`,
+                      height: `${(DEFAULT_SLOT_DURATION_MINUTES / 60) * HOUR_HEIGHT_PX}px`,
+                      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                      border: '2px solid rgba(59, 130, 246, 0.3)',
+                    }}
+                  />
+                )}
 
                 {events.map((ev) => {
                   const cls = `scheduler-event ${ev.status === 'Completed' ? 'completed' : ev.status === 'Cancelled' ? 'cancelled' : ev.status === 'No Show' ? 'noshow' : 'scheduled'} ${ev.height <= (HOUR_HEIGHT_PX * (20 / 60)) ? 'small' : ''}`;

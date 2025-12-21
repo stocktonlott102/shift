@@ -7,6 +7,8 @@ import type { Client } from '@/lib/types/client';
 import ClientMultiPicker from './ClientMultiPicker';
 import { createClient as createBrowserClient } from '@/lib/supabase/client';
 import type { LessonType } from '@/lib/types/lesson-type';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 interface BookLessonFormProps {
   clients: Client[];
@@ -37,11 +39,11 @@ export default function BookLessonForm({
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [startTime, setStartTime] = useState(
-    defaultStartTime ? formatDateTimeLocal(defaultStartTime) : ''
+  const [startTime, setStartTime] = useState<Date | null>(
+    defaultStartTime || null
   );
-  const [endTime, setEndTime] = useState(
-    defaultEndTime ? formatDateTimeLocal(defaultEndTime) : ''
+  const [endTime, setEndTime] = useState<Date | null>(
+    defaultEndTime || null
   );
   const [durationPreset, setDurationPreset] = useState<15 | 20 | 30 | 60 | 'custom'>('custom');
   const [location, setLocation] = useState('');
@@ -80,16 +82,13 @@ export default function BookLessonForm({
   useEffect(() => {
     if (!startTime || durationPreset === 'custom') return;
 
-    const start = new Date(startTime);
-    const end = new Date(start.getTime() + durationPreset * 60 * 1000);
-    setEndTime(formatDateTimeLocal(end));
+    const end = new Date(startTime.getTime() + durationPreset * 60 * 1000);
+    setEndTime(end);
   }, [startTime, durationPreset]);
 
   const durationHours = useMemo(() => {
     if (!startTime || !endTime) return 0;
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-    return Math.max(0, (end.getTime() - start.getTime()) / (1000 * 60 * 60));
+    return Math.max(0, (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60));
   }, [startTime, endTime]);
 
   const effectiveRate = useMemo(() => {
@@ -177,16 +176,13 @@ export default function BookLessonForm({
       return;
     }
 
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-
-    if (end <= start) {
+    if (endTime <= startTime) {
       setError(ERROR_MESSAGES.LESSON.INVALID_TIME_RANGE);
       setIsLoading(false);
       return;
     }
 
-    const durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+    const durationMinutes = (endTime.getTime() - startTime.getTime()) / (1000 * 60);
     if (durationMinutes < 5) {
       setError(ERROR_MESSAGES.LESSON.INVALID_DURATION);
       setIsLoading(false);
@@ -201,18 +197,31 @@ export default function BookLessonForm({
         setIsLoading(false);
         return;
       }
-      
-      const result = await createLessonWithParticipants({
+
+      // Build payload, only including optional fields if they have values
+      const payload: any = {
         title: finalTitle.trim(),
-        description: description.trim() || undefined,
-        start_time: start.toISOString(),
-        end_time: end.toISOString(),
-        location: location.trim() || undefined,
+        start_time: startTime.toISOString(),
+        end_time: endTime.toISOString(),
         client_ids: selectedClientIds,
-        lesson_type_id: selectedLessonTypeId && selectedLessonTypeId !== 'custom' ? selectedLessonTypeId : undefined,
-        custom_hourly_rate: selectedLessonTypeId === 'custom' ? rate : undefined,
-        is_recurring: isRecurring,
-      });
+        lesson_type_id: selectedLessonTypeId && selectedLessonTypeId !== 'custom' ? selectedLessonTypeId : null,
+      };
+
+      // Only include optional fields if they have values
+      if (description.trim()) {
+        payload.description = description.trim();
+      }
+      if (location.trim()) {
+        payload.location = location.trim();
+      }
+      if (selectedLessonTypeId === 'custom') {
+        payload.custom_hourly_rate = rate;
+      }
+      if (isRecurring) {
+        payload.is_recurring = true;
+      }
+
+      const result = await createLessonWithParticipants(payload);
 
       if (!result.success) {
         setError(result.error || ERROR_MESSAGES.LESSON.CREATE_FAILED);
@@ -226,9 +235,9 @@ export default function BookLessonForm({
       setSelectedClientIds([]);
       setTitle('');
       setDescription('');
-      setStartTime('');
-      setEndTime('');
-      setDurationPreset(30);
+      setStartTime(null);
+      setEndTime(null);
+      setDurationPreset('custom');
       setLocation('');
       setSelectedLessonTypeId('');
       setCustomRate('');
@@ -280,8 +289,16 @@ export default function BookLessonForm({
             <select
               value={selectedLessonTypeId}
               onChange={(e) => setSelectedLessonTypeId(e.target.value)}
-              className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white bg-white appearance-none"
               disabled={isLoading}
+              style={{
+                colorScheme: 'light',
+                backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3E%3Cpath stroke=\'%236b7280\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M6 8l4 4 4-4\'/%3E%3C/svg%3E")',
+                backgroundPosition: 'right 0.5rem center',
+                backgroundRepeat: 'no-repeat',
+                backgroundSize: '1.5em 1.5em',
+                paddingRight: '2.5rem'
+              }}
             >
               <option value="">Choose a type…</option>
               {lessonTypes.map((lt) => {
@@ -324,14 +341,18 @@ export default function BookLessonForm({
           <label htmlFor="startTime" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Start Time <span className="text-red-500">*</span>
           </label>
-          <input
+          <DatePicker
             id="startTime"
-            type="datetime-local"
-            required
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
+            selected={startTime}
+            onChange={(date) => setStartTime(date)}
+            showTimeSelect
+            timeFormat="h:mm aa"
+            timeIntervals={5}
+            dateFormat="MMMM d, yyyy h:mm aa"
             className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
             disabled={isLoading}
+            placeholderText="Select start date and time"
+            minDate={new Date()}
           />
         </div>
 
@@ -407,20 +428,24 @@ export default function BookLessonForm({
               <label htmlFor="endTime" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Custom End Time
               </label>
-              <input
+              <DatePicker
                 id="endTime"
-                type="datetime-local"
-                required
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
+                selected={endTime}
+                onChange={(date) => setEndTime(date)}
+                showTimeSelect
+                timeFormat="h:mm aa"
+                timeIntervals={5}
+                dateFormat="MMMM d, yyyy h:mm aa"
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 disabled={isLoading}
+                placeholderText="Select end date and time"
+                minDate={startTime || new Date()}
               />
             </div>
           )}
           <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
             {durationPreset !== 'custom' && startTime && endTime && (
-              <>End time: {new Date(endTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</>
+              <>End time: {endTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</>
             )}
             {durationPreset === 'custom' && <>Minimum lesson duration: 5 minutes</>}
           </p>
@@ -507,7 +532,7 @@ export default function BookLessonForm({
                       Make this a recurring lesson
                     </span>
                     <span className="block text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      Creates weekly lessons for 1 year (52 total lessons){startTime && ` through ${new Date(new Date(startTime).getTime() + 365 * 24 * 60 * 60 * 1000).toLocaleDateString()}`}
+                      Creates weekly lessons for 1 year (52 total lessons){startTime && ` through ${new Date(startTime.getTime() + 365 * 24 * 60 * 60 * 1000).toLocaleDateString()}`}
                     </span>
                   </div>
                 </label>

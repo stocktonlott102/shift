@@ -9,6 +9,12 @@ import type {
   Lesson,
   LessonWithClient,
 } from '@/lib/types/lesson';
+import {
+  CreateLessonSchema,
+  UpdateLessonSchema,
+  CancelLessonSchema,
+  type CreateLessonInput
+} from '@/lib/validations/lesson';
 
 type CreateSingleClientLessonInput = {
   client_id: string;
@@ -203,8 +209,9 @@ export async function createLesson(formData: CreateSingleClientLessonInput) {
  * Notes:
  * - Does not create invoices yet; Outstanding view will use `lesson_participants`.
  * - Requires migration adding `lesson_type_id` and `lesson_participants` to be applied.
+ * - Uses Zod validation to prevent SQL injection and invalid data
  */
-export async function createLessonWithParticipants(input: CreateMultiClientLessonInput) {
+export async function createLessonWithParticipants(input: unknown) {
   try {
     const supabase = await createClient();
 
@@ -217,42 +224,44 @@ export async function createLessonWithParticipants(input: CreateMultiClientLesso
       return { success: false, error: ERROR_MESSAGES.AUTH.NOT_LOGGED_IN };
     }
 
-    // Basic validation
-    if (!input.start_time || !input.end_time || !input.title || !input.client_ids?.length) {
-      return { success: false, error: ERROR_MESSAGES.LESSON.REQUIRED_FIELDS };
+    // SECURITY: Validate and sanitize all input using Zod
+    // This prevents SQL injection, type confusion, and business logic bypass attacks
+    const validationResult = CreateLessonSchema.safeParse(input);
+
+    if (!validationResult.success) {
+      const firstError = validationResult.error.issues[0];
+      return {
+        success: false,
+        error: `${firstError.path.join('.')}: ${firstError.message}`,
+      };
     }
 
-    const startTime = new Date(input.start_time);
-    const endTime = new Date(input.end_time);
-    if (endTime <= startTime) {
-      return { success: false, error: ERROR_MESSAGES.LESSON.INVALID_TIME_RANGE };
-    }
+    const validatedInput = validationResult.data;
 
+    // Duration calculations (already validated by Zod)
+    const startTime = new Date(validatedInput.start_time);
+    const endTime = new Date(validatedInput.end_time);
     const durationMs = endTime.getTime() - startTime.getTime();
-    const durationMinutes = durationMs / (1000 * 60);
-    if (durationMinutes < 5) {
-      return { success: false, error: ERROR_MESSAGES.LESSON.INVALID_DURATION };
-    }
 
     // Ensure all clients belong to this coach
     const { data: clients, error: clientsError } = await supabase
       .from('clients')
       .select('id')
       .eq('coach_id', user.id)
-      .in('id', input.client_ids);
+      .in('id', validatedInput.client_ids);
 
     if (clientsError) {
       return { success: false, error: ERROR_MESSAGES.CLIENT.FETCH_FAILED };
     }
 
     const validClientIds = (clients || []).map((c: any) => c.id);
-    if (validClientIds.length !== input.client_ids.length) {
+    if (validClientIds.length !== validatedInput.client_ids.length) {
       return { success: false, error: ERROR_MESSAGES.CLIENT.NOT_FOUND };
     }
 
-    // Determine hourly rate from lesson type or custom
-    let hourlyRate: number | null = null;
-    let lessonTypeId: string | null = input.lesson_type_id || null;
+    // Determine hourly rate from lesson type or custom (already validated by Zod)
+    let hourlyRate: number;
+    let lessonTypeId: string | null = validatedInput.lesson_type_id;
 
     if (lessonTypeId) {
       const { data: lt, error: ltError } = await supabase
@@ -265,26 +274,22 @@ export async function createLessonWithParticipants(input: CreateMultiClientLesso
         return { success: false, error: ERROR_MESSAGES.LESSON.TYPE_NOT_FOUND };
       }
       hourlyRate = Number(lt.hourly_rate);
-    } else if (typeof input.custom_hourly_rate === 'number') {
-      hourlyRate = input.custom_hourly_rate;
-      if (hourlyRate <= 0 || hourlyRate > 999) {
-        return { success: false, error: ERROR_MESSAGES.LESSON.INVALID_RATE };
-      }
     } else {
-      return { success: false, error: ERROR_MESSAGES.LESSON.INVALID_RATE };
+      // Custom lesson - rate already validated by Zod
+      hourlyRate = validatedInput.custom_hourly_rate!;
     }
 
     const durationHours = durationMs / (1000 * 60 * 60);
     const totalAmount = Math.round(durationHours * hourlyRate * 100) / 100;
-    const splitAmount = Math.round((totalAmount / input.client_ids.length) * 100) / 100;
+    const splitAmount = Math.round((totalAmount / validatedInput.client_ids.length) * 100) / 100;
 
     // Handle recurring lesson creation
-    if (input.is_recurring) {
+    if (validatedInput.is_recurring) {
       const lessons: any[] = [];
       const allParticipants: any[] = [];
 
       // Calculate 1 year from start date
-      const firstStartTime = new Date(input.start_time);
+      const firstStartTime = new Date(validatedInput.start_time);
       const recurrenceEndDate = new Date(firstStartTime);
       recurrenceEndDate.setFullYear(recurrenceEndDate.getFullYear() + 1);
 
@@ -299,12 +304,12 @@ export async function createLessonWithParticipants(input: CreateMultiClientLesso
         lessons.push({
           coach_id: user.id,
           client_id: null,
-          title: input.title,
-          description: input.description || null,
+          title: validatedInput.title,
+          description: validatedInput.description || null,
           start_time: lessonStart.toISOString(),
           end_time: lessonEnd.toISOString(),
-          location: input.location || null,
-          rate_at_booking: input.rate_at_booking ?? hourlyRate,
+          location: validatedInput.location || null,
+          rate_at_booking: hourlyRate,
           lesson_type_id: lessonTypeId,
           status: 'Scheduled',
           is_recurring: true,
@@ -343,7 +348,7 @@ export async function createLessonWithParticipants(input: CreateMultiClientLesso
 
       // Create participants for all lessons
       for (const lesson of createdLessons) {
-        for (const clientId of input.client_ids) {
+        for (const clientId of validatedInput.client_ids) {
           allParticipants.push({
             lesson_id: lesson.id,
             client_id: clientId,
@@ -376,12 +381,12 @@ export async function createLessonWithParticipants(input: CreateMultiClientLesso
         coach_id: user.id,
         // keep legacy client_id null for multi-client
         client_id: null,
-        title: input.title,
-        description: input.description || null,
-        start_time: input.start_time,
-        end_time: input.end_time,
-        location: input.location || null,
-        rate_at_booking: input.rate_at_booking ?? hourlyRate,
+        title: validatedInput.title,
+        description: validatedInput.description || null,
+        start_time: validatedInput.start_time,
+        end_time: validatedInput.end_time,
+        location: validatedInput.location || null,
+        rate_at_booking: hourlyRate,
         lesson_type_id: lessonTypeId,
         status: 'Scheduled',
         is_recurring: false,
@@ -398,7 +403,7 @@ export async function createLessonWithParticipants(input: CreateMultiClientLesso
     }
 
     // Insert participants in a single batch
-    const participantsRows = input.client_ids.map((cid) => ({
+    const participantsRows = validatedInput.client_ids.map((cid) => ({
       lesson_id: lesson.id,
       client_id: cid,
       amount_owed: splitAmount,
@@ -582,8 +587,9 @@ export async function getLessonById(lessonId: string) {
 
 /**
  * Server Action: Update an existing lesson
+ * Uses Zod validation to prevent SQL injection and invalid data
  */
-export async function updateLesson(lessonId: string, formData: UpdateLessonData) {
+export async function updateLesson(lessonId: string, formData: unknown) {
   try {
     const supabase = await createClient();
 
@@ -600,34 +606,31 @@ export async function updateLesson(lessonId: string, formData: UpdateLessonData)
       };
     }
 
-    // Validation: If updating times, ensure end is after start
-    if (formData.start_time && formData.end_time) {
-      const startTime = new Date(formData.start_time);
-      const endTime = new Date(formData.end_time);
-
-      if (endTime <= startTime) {
-        return {
-          success: false,
-          error: ERROR_MESSAGES.LESSON.INVALID_TIME_RANGE,
-        };
-      }
-
-      // Check minimum duration
-      const durationMs = endTime.getTime() - startTime.getTime();
-      const durationMinutes = durationMs / (1000 * 60);
-
-      if (durationMinutes < 15) {
-        return {
-          success: false,
-          error: ERROR_MESSAGES.LESSON.INVALID_DURATION,
-        };
-      }
+    // SECURITY: Validate lessonId is a valid UUID
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lessonId)) {
+      return {
+        success: false,
+        error: 'Invalid lesson ID format',
+      };
     }
+
+    // SECURITY: Validate and sanitize all input using Zod
+    const validationResult = UpdateLessonSchema.safeParse(formData);
+
+    if (!validationResult.success) {
+      const firstError = validationResult.error.issues[0];
+      return {
+        success: false,
+        error: `${firstError.path.join('.')}: ${firstError.message}`,
+      };
+    }
+
+    const validatedData = validationResult.data;
 
     // Update the lesson - RLS ensures user owns this lesson
     const { data, error } = await supabase
       .from('lessons')
-      .update(formData)
+      .update(validatedData)
       .eq('id', lessonId)
       .select()
       .single();
@@ -662,8 +665,9 @@ export async function updateLesson(lessonId: string, formData: UpdateLessonData)
 
 /**
  * Server Action: Cancel a lesson
+ * Uses Zod validation to prevent SQL injection and invalid data
  */
-export async function cancelLesson(lessonId: string, cancelData?: CancelLessonData) {
+export async function cancelLesson(lessonId: string, cancelData?: unknown) {
   try {
     const supabase = await createClient();
 
@@ -680,13 +684,35 @@ export async function cancelLesson(lessonId: string, cancelData?: CancelLessonDa
       };
     }
 
+    // SECURITY: Validate lessonId is a valid UUID
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lessonId)) {
+      return {
+        success: false,
+        error: 'Invalid lesson ID format',
+      };
+    }
+
+    // SECURITY: Validate cancellation data if provided
+    let validatedCancelData: { cancelled_reason?: string } = {};
+    if (cancelData) {
+      const validationResult = CancelLessonSchema.safeParse(cancelData);
+      if (!validationResult.success) {
+        const firstError = validationResult.error.issues[0];
+        return {
+          success: false,
+          error: `${firstError.path.join('.')}: ${firstError.message}`,
+        };
+      }
+      validatedCancelData = validationResult.data;
+    }
+
     // Update lesson status to Cancelled
     const { data, error } = await supabase
       .from('lessons')
       .update({
         status: 'Cancelled',
         cancelled_at: new Date().toISOString(),
-        cancelled_reason: cancelData?.cancelled_reason || null,
+        cancelled_reason: validatedCancelData?.cancelled_reason || null,
       })
       .eq('id', lessonId)
       .select()

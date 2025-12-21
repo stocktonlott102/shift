@@ -6,6 +6,8 @@ import { updateFutureLessonsInSeries, deleteFutureLessonsInSeries } from '@/app/
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/lib/constants/messages';
 import type { LessonWithClient } from '@/lib/types/lesson';
 import type { Client } from '@/lib/types/client';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 interface EditLessonFormProps {
   lesson: LessonWithClient;
@@ -34,8 +36,8 @@ export default function EditLessonForm({
   // Form state
   const [title, setTitle] = useState(lesson.title || '');
   const [description, setDescription] = useState(lesson.description || '');
-  const [startTime, setStartTime] = useState(formatDateTimeLocal(lesson.start_time));
-  const [endTime, setEndTime] = useState(formatDateTimeLocal(lesson.end_time));
+  const [startTime, setStartTime] = useState<Date>(new Date(lesson.start_time));
+  const [endTime, setEndTime] = useState<Date>(new Date(lesson.end_time));
   const [durationPreset, setDurationPreset] = useState<15 | 20 | 30 | 60 | 'custom'>('custom');
   const [location, setLocation] = useState(lesson.location || '');
   const [status, setStatus] = useState(lesson.status);
@@ -53,16 +55,13 @@ export default function EditLessonForm({
   useEffect(() => {
     if (!startTime || durationPreset === 'custom') return;
 
-    const start = new Date(startTime);
-    const end = new Date(start.getTime() + durationPreset * 60 * 1000);
-    setEndTime(formatDateTimeLocal(end));
+    const end = new Date(startTime.getTime() + durationPreset * 60 * 1000);
+    setEndTime(end);
   }, [startTime, durationPreset]);
 
   const durationHours = useMemo(() => {
     if (!startTime || !endTime) return 0;
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-    return Math.max(0, (end.getTime() - start.getTime()) / (1000 * 60 * 60));
+    return Math.max(0, (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60));
   }, [startTime, endTime]);
 
   // Get client names for display
@@ -91,16 +90,13 @@ export default function EditLessonForm({
       return;
     }
 
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-
-    if (end <= start) {
+    if (endTime <= startTime) {
       setError(ERROR_MESSAGES.LESSON.INVALID_TIME_RANGE);
       setIsLoading(false);
       return;
     }
 
-    const durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+    const durationMinutes = (endTime.getTime() - startTime.getTime()) / (1000 * 60);
     if (durationMinutes < 5) {
       setError(ERROR_MESSAGES.LESSON.INVALID_DURATION);
       setIsLoading(false);
@@ -110,26 +106,28 @@ export default function EditLessonForm({
     try {
       let result;
 
+      // Build payload, only including optional fields if they have values
+      const basePayload: any = {
+        title: title.trim(),
+        start_time: startTime.toISOString(),
+        end_time: endTime.toISOString(),
+        status,
+      };
+
+      // Only include optional fields if they have values
+      if (description.trim()) {
+        basePayload.description = description.trim();
+      }
+      if (location.trim()) {
+        basePayload.location = location.trim();
+      }
+
       // If this is a recurring lesson and "All future lessons" is selected, use the recurring update action
       if (lesson.is_recurring && recurringEditMode === 'all_future') {
-        result = await updateFutureLessonsInSeries(lesson.id, {
-          title: title.trim(),
-          description: description.trim() || undefined,
-          start_time: start.toISOString(),
-          end_time: end.toISOString(),
-          location: location.trim() || undefined,
-          status,
-        });
+        result = await updateFutureLessonsInSeries(lesson.id, basePayload);
       } else {
         // Otherwise, update just this lesson
-        result = await updateLesson(lesson.id, {
-          title: title.trim(),
-          description: description.trim() || undefined,
-          start_time: start.toISOString(),
-          end_time: end.toISOString(),
-          location: location.trim() || undefined,
-          status,
-        });
+        result = await updateLesson(lesson.id, basePayload);
       }
 
       if (!result.success) {
@@ -234,12 +232,14 @@ export default function EditLessonForm({
           <label htmlFor="startTime" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Start Time <span className="text-red-500">*</span>
           </label>
-          <input
+          <DatePicker
             id="startTime"
-            type="datetime-local"
-            required
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
+            selected={startTime}
+            onChange={(date) => date && setStartTime(date)}
+            showTimeSelect
+            timeFormat="h:mm aa"
+            timeIntervals={5}
+            dateFormat="MMMM d, yyyy h:mm aa"
             className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
             disabled={isLoading}
           />
@@ -317,20 +317,23 @@ export default function EditLessonForm({
               <label htmlFor="endTime" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Custom End Time
               </label>
-              <input
+              <DatePicker
                 id="endTime"
-                type="datetime-local"
-                required
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
+                selected={endTime}
+                onChange={(date) => date && setEndTime(date)}
+                showTimeSelect
+                timeFormat="h:mm aa"
+                timeIntervals={5}
+                dateFormat="MMMM d, yyyy h:mm aa"
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 disabled={isLoading}
+                minDate={startTime}
               />
             </div>
           )}
           <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
             {durationPreset !== 'custom' && startTime && endTime && (
-              <>End time: {new Date(endTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</>
+              <>End time: {endTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</>
             )}
             {durationPreset === 'custom' && <>Minimum lesson duration: 5 minutes</>}
           </p>

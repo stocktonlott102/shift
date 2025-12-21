@@ -3,7 +3,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/lib/constants/messages';
-import type { CreateLessonTypeInput, UpdateLessonTypeInput, LessonType } from '@/lib/types/lesson-type';
+import type { LessonType } from '@/lib/types/lesson-type';
+import { CreateLessonTypeSchema, UpdateLessonTypeSchema } from '@/lib/validations/lesson-type';
 
 interface ActionResponse<T = void> {
   success: boolean;
@@ -14,10 +15,9 @@ interface ActionResponse<T = void> {
 
 /**
  * Create a new lesson type
+ * Uses Zod validation to prevent SQL injection and invalid data
  */
-export async function createLessonType(
-  input: CreateLessonTypeInput
-): Promise<ActionResponse<LessonType>> {
+export async function createLessonType(input: unknown): Promise<ActionResponse<LessonType>> {
   try {
     const supabase = await createClient();
 
@@ -33,28 +33,26 @@ export async function createLessonType(
       };
     }
 
-    // Validate input
-    if (!input.name?.trim()) {
+    // SECURITY: Validate and sanitize all input using Zod
+    const validationResult = CreateLessonTypeSchema.safeParse(input);
+
+    if (!validationResult.success) {
+      const firstError = validationResult.error.issues[0];
       return {
         success: false,
-        error: 'Lesson type name is required.',
+        error: `${firstError.path.join('.')}: ${firstError.message}`,
       };
     }
 
-    if (!input.hourly_rate || input.hourly_rate <= 0 || input.hourly_rate > 999) {
-      return {
-        success: false,
-        error: ERROR_MESSAGES.LESSON.INVALID_RATE,
-      };
-    }
+    const validatedInput = validationResult.data;
 
     const { data, error } = await supabase
       .from('lesson_types')
       .insert({
         coach_id: user.id,
-        name: input.name.trim(),
-        hourly_rate: input.hourly_rate,
-        color: input.color || '#3B82F6',
+        name: validatedInput.name,
+        hourly_rate: validatedInput.hourly_rate,
+        color: validatedInput.color,
         is_active: true,
       })
       .select()
@@ -93,11 +91,9 @@ export async function createLessonType(
 
 /**
  * Update an existing lesson type
+ * Uses Zod validation to prevent SQL injection and invalid data
  */
-export async function updateLessonType(
-  id: string,
-  input: UpdateLessonTypeInput
-): Promise<ActionResponse<LessonType>> {
+export async function updateLessonType(id: string, input: unknown): Promise<ActionResponse<LessonType>> {
   try {
     const supabase = await createClient();
 
@@ -113,31 +109,30 @@ export async function updateLessonType(
       };
     }
 
-    // Validate inputs
-    if (input.name && !input.name.trim()) {
+    // SECURITY: Validate id is a valid UUID
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
       return {
         success: false,
-        error: 'Lesson type name cannot be empty.',
+        error: 'Invalid lesson type ID format',
       };
     }
 
-    if (input.hourly_rate !== undefined) {
-      if (input.hourly_rate <= 0 || input.hourly_rate > 999) {
-        return {
-          success: false,
-          error: ERROR_MESSAGES.LESSON.INVALID_RATE,
-        };
-      }
+    // SECURITY: Validate and sanitize all input using Zod
+    const validationResult = UpdateLessonTypeSchema.safeParse(input);
+
+    if (!validationResult.success) {
+      const firstError = validationResult.error.issues[0];
+      return {
+        success: false,
+        error: `${firstError.path.join('.')}: ${firstError.message}`,
+      };
     }
 
-    const updatePayload: any = {};
-    if (input.name !== undefined) updatePayload.name = input.name.trim();
-    if (input.hourly_rate !== undefined) updatePayload.hourly_rate = input.hourly_rate;
-    if (input.color !== undefined) updatePayload.color = input.color;
+    const validatedInput = validationResult.data;
 
     const { data, error } = await supabase
       .from('lesson_types')
-      .update(updatePayload)
+      .update(validatedInput)
       .eq('id', id)
       .eq('coach_id', user.id)
       .select()

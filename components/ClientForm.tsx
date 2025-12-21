@@ -59,24 +59,27 @@ export default function ClientForm({ coachId, client, onSuccess, onCancel }: Cli
     try {
       let result;
 
+      // Build base payload
+      const basePayload: any = {
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        parent_email: parentEmail.trim().toLowerCase(),
+        parent_phone: parentPhone.trim(),
+      };
+
+      // Only include notes if not empty
+      if (notes.trim()) {
+        basePayload.notes = notes.trim();
+      }
+
       if (isEditMode && client) {
         // Update existing client
-        result = await updateClient(client.id, {
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          parent_email: parentEmail.trim().toLowerCase(),
-          parent_phone: parentPhone.trim(),
-          notes: notes.trim() || undefined,
-        });
+        result = await updateClient(client.id, basePayload);
       } else {
-        // Create new client
+        // Create new client - add coach_id
         result = await addClient({
           coach_id: coachId,
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          parent_email: parentEmail.trim().toLowerCase(),
-          parent_phone: parentPhone.trim(),
-          notes: notes.trim() || undefined,
+          ...basePayload,
         });
       }
 

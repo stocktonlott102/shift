@@ -2,23 +2,15 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
-import { validateClientData } from '@/lib/validation/client-validation';
-import { ERROR_MESSAGES } from '@/lib/constants/messages';
+import { CreateClientSchema, UpdateClientSchema } from '@/lib/validations/client';
 
 /**
  * Server Action: Create a new client
  *
  * Security: Uses Supabase Server Client with RLS policies
- * The coach_id is automatically set to auth.uid() on the server
+ * Uses Zod validation to prevent SQL injection and XSS attacks
  */
-export async function addClient(formData: {
-  coach_id: string;
-  first_name: string;
-  last_name: string;
-  parent_email: string;
-  parent_phone: string;
-  notes?: string;
-}) {
+export async function addClient(formData: unknown) {
   try {
     const supabase = await createClient();
 
@@ -36,40 +28,30 @@ export async function addClient(formData: {
       };
     }
 
-    // Ensure the coach_id matches the authenticated user (security check)
-    if (formData.coach_id !== user.id) {
-      console.error('Coach ID mismatch');
+    // SECURITY: Validate and sanitize all input using Zod
+    // This prevents SQL injection, XSS attacks, and invalid data
+    const validationResult = CreateClientSchema.safeParse(formData);
+
+    if (!validationResult.success) {
+      const firstError = validationResult.error.issues[0];
       return {
         success: false,
-        error: 'Unauthorized: Cannot create clients for other coaches.',
+        error: `${firstError.path.join('.')}: ${firstError.message}`,
       };
     }
 
-    // Server-side validation using shared validator
-    const validationErrors = validateClientData({
-      first_name: formData.first_name,
-      last_name: formData.last_name,
-      parent_email: formData.parent_email,
-      parent_phone: formData.parent_phone,
-    });
+    const validatedData = validationResult.data;
 
-    if (validationErrors.length > 0) {
-      return {
-        success: false,
-        error: validationErrors[0].message || ERROR_MESSAGES.CLIENT.CREATE_FAILED,
-      };
-    }
-
-    // Insert the client into the database
+    // Insert the client into the database with validated data
     const { data, error } = await supabase
       .from('clients')
       .insert({
-        coach_id: formData.coach_id,
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        parent_email: formData.parent_email,
-        parent_phone: formData.parent_phone,
-        notes: formData.notes || null,
+        coach_id: user.id, // Always use authenticated user's ID for security
+        first_name: validatedData.first_name,
+        last_name: validatedData.last_name,
+        parent_email: validatedData.parent_email,
+        parent_phone: validatedData.parent_phone,
+        notes: validatedData.notes || null,
       })
       .select()
       .single();
@@ -217,17 +199,9 @@ export async function getClientById(clientId: string) {
 
 /**
  * Server Action: Update an existing client
+ * Uses Zod validation to prevent SQL injection and XSS attacks
  */
-export async function updateClient(
-  clientId: string,
-  formData: {
-    first_name: string;
-    last_name: string;
-    parent_email: string;
-    parent_phone: string;
-    notes?: string;
-  }
-) {
+export async function updateClient(clientId: string, formData: unknown) {
   try {
     const supabase = await createClient();
 
@@ -244,30 +218,36 @@ export async function updateClient(
       };
     }
 
-    // Server-side validation using shared validator
-    const validationErrors = validateClientData({
-      first_name: formData.first_name,
-      last_name: formData.last_name,
-      parent_email: formData.parent_email,
-      parent_phone: formData.parent_phone,
-    });
-
-    if (validationErrors.length > 0) {
+    // SECURITY: Validate clientId is a valid UUID
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clientId)) {
       return {
         success: false,
-        error: validationErrors[0].message || ERROR_MESSAGES.CLIENT.UPDATE_FAILED,
+        error: 'Invalid client ID format',
       };
     }
+
+    // SECURITY: Validate and sanitize all input using Zod
+    const validationResult = UpdateClientSchema.safeParse(formData);
+
+    if (!validationResult.success) {
+      const firstError = validationResult.error.issues[0];
+      return {
+        success: false,
+        error: `${firstError.path.join('.')}: ${firstError.message}`,
+      };
+    }
+
+    const validatedData = validationResult.data;
 
     // Update the client - RLS ensures user owns this client
     const { data, error } = await supabase
       .from('clients')
       .update({
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        parent_email: formData.parent_email,
-        parent_phone: formData.parent_phone,
-        notes: formData.notes || null,
+        first_name: validatedData.first_name,
+        last_name: validatedData.last_name,
+        parent_email: validatedData.parent_email,
+        parent_phone: validatedData.parent_phone,
+        notes: validatedData.notes || null,
       })
       .eq('id', clientId)
       .select()
