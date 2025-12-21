@@ -235,7 +235,7 @@ export default function EditLessonForm({
           <DatePicker
             id="startTime"
             selected={startTime}
-            onChange={(date) => date && setStartTime(date)}
+            onChange={(date: Date | null) => date && setStartTime(date)}
             showTimeSelect
             timeFormat="h:mm aa"
             timeIntervals={5}
@@ -320,7 +320,7 @@ export default function EditLessonForm({
               <DatePicker
                 id="endTime"
                 selected={endTime}
-                onChange={(date) => date && setEndTime(date)}
+                onChange={(date: Date | null) => date && setEndTime(date)}
                 showTimeSelect
                 timeFormat="h:mm aa"
                 timeIntervals={5}
