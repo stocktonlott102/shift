@@ -4,6 +4,7 @@ import { useState, useEffect, FormEvent } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { loginAction } from '@/app/actions/auth-actions';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -56,47 +57,42 @@ export default function LoginPage() {
     }
 
     try {
-      // Sign in with Supabase
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      // SECURITY: Use rate-limited server action for login
+      const result = await loginAction({
         email,
         password,
+        ipAddress: undefined, // Browser can't access real IP, will use email as fallback
       });
 
-      if (signInError) {
-        throw signInError;
+      if (!result.success) {
+        setError(result.error || 'Login failed. Please try again.');
+        setIsLoading(false);
+        return;
       }
 
-      if (data?.user && data?.session) {
+      // Login successful - now get the session from Supabase client
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (session) {
         // Handle Remember Me functionality
         if (!rememberMe) {
           // If Remember Me is NOT checked, mark this as a temporary session
-          // sessionStorage is cleared when browser closes
           sessionStorage.setItem('shift_temp_session', 'true');
-          // localStorage persists, so we use it to track that this session should be cleared
           localStorage.setItem('shift_was_temp_session', 'true');
         } else {
-          // Remember Me IS checked - clear any temp flags and let Supabase persist normally
+          // Remember Me IS checked - clear any temp flags
           localStorage.removeItem('shift_was_temp_session');
         }
-        // Supabase automatically persists session in localStorage (30 days)
 
         // Successfully logged in, redirect to calendar
         router.push('/calendar');
+      } else {
+        setError('Session creation failed. Please try again.');
+        setIsLoading(false);
       }
     } catch (err: any) {
       console.error('Login error:', err);
-
-      // Handle specific error messages
-      if (err.message === 'Invalid login credentials') {
-        setError('Invalid email or password. Please try again.');
-      } else if (err.message === 'Email not confirmed') {
-        setError('Please confirm your email address before logging in.');
-      } else if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
-        setError('Cannot connect to authentication service. Please check your internet connection and try again.');
-      } else {
-        setError(err.message || 'An error occurred during login. Please try again.');
-      }
-
+      setError(err.message || 'An error occurred during login. Please try again.');
       setIsLoading(false);
     }
   };
