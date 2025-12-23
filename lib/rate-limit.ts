@@ -97,10 +97,13 @@ export async function checkRateLimit(
     const { success, remaining, reset } = await rateLimit.limit(identifier);
 
     if (!success) {
-      const resetDate = new Date(reset);
+      // Calculate minutes until reset
+      const now = Date.now();
+      const minutesUntilReset = Math.ceil((reset - now) / 1000 / 60);
+
       return {
         success: false,
-        error: `Rate limit exceeded. Try again at ${resetDate.toLocaleTimeString()}`,
+        error: `Rate limit exceeded. Try again in ${minutesUntilReset} minute${minutesUntilReset !== 1 ? 's' : ''}.`,
         remaining: 0,
       };
     }
