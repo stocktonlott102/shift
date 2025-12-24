@@ -15,6 +15,7 @@ import {
   CancelLessonSchema,
   type CreateLessonInput
 } from '@/lib/validations/lesson';
+import { checkRateLimit, lessonRateLimit, getRateLimitIdentifier } from '@/lib/rate-limit';
 
 type CreateSingleClientLessonInput = {
   client_id: string;
@@ -41,7 +42,10 @@ type CreateMultiClientLessonInput = {
 /**
  * Server Action: Create a new lesson and automatically generate an invoice
  *
- * Security: Uses Supabase Server Client with RLS policies
+ * Security:
+ * - Uses Supabase Server Client with RLS policies
+ * - Rate limited to 30 requests per minute to prevent spam
+ *
  * Business Logic: When a lesson is created, an invoice is automatically generated
  */
 export async function createLesson(formData: CreateSingleClientLessonInput) {
@@ -58,6 +62,17 @@ export async function createLesson(formData: CreateSingleClientLessonInput) {
       return {
         success: false,
         error: ERROR_MESSAGES.AUTH.NOT_LOGGED_IN,
+      };
+    }
+
+    // SECURITY: Rate limiting - prevent lesson creation spam
+    const identifier = getRateLimitIdentifier(user.id);
+    const rateLimitResult = await checkRateLimit(identifier, lessonRateLimit);
+
+    if (!rateLimitResult.success) {
+      return {
+        success: false,
+        error: rateLimitResult.error || 'Too many requests. Please try again later.',
       };
     }
 
@@ -222,6 +237,17 @@ export async function createLessonWithParticipants(input: unknown) {
 
     if (authError || !user) {
       return { success: false, error: ERROR_MESSAGES.AUTH.NOT_LOGGED_IN };
+    }
+
+    // SECURITY: Rate limiting - prevent lesson creation spam
+    const identifier = getRateLimitIdentifier(user.id);
+    const rateLimitResult = await checkRateLimit(identifier, lessonRateLimit);
+
+    if (!rateLimitResult.success) {
+      return {
+        success: false,
+        error: rateLimitResult.error || 'Too many requests. Please try again later.',
+      };
     }
 
     // SECURITY: Validate and sanitize all input using Zod
@@ -587,7 +613,10 @@ export async function getLessonById(lessonId: string) {
 
 /**
  * Server Action: Update an existing lesson
- * Uses Zod validation to prevent SQL injection and invalid data
+ *
+ * SECURITY:
+ * - Rate limited to 30 requests per minute
+ * - Uses Zod validation to prevent SQL injection and invalid data
  */
 export async function updateLesson(lessonId: string, formData: unknown) {
   try {
@@ -603,6 +632,17 @@ export async function updateLesson(lessonId: string, formData: unknown) {
       return {
         success: false,
         error: ERROR_MESSAGES.AUTH.NOT_LOGGED_IN,
+      };
+    }
+
+    // SECURITY: Rate limiting - prevent update spam
+    const identifier = getRateLimitIdentifier(user.id);
+    const rateLimitResult = await checkRateLimit(identifier, lessonRateLimit);
+
+    if (!rateLimitResult.success) {
+      return {
+        success: false,
+        error: rateLimitResult.error || 'Too many requests. Please try again later.',
       };
     }
 
@@ -816,6 +856,10 @@ export async function completeLesson(lessonId: string) {
 
 /**
  * Server Action: Delete a lesson permanently
+ *
+ * SECURITY:
+ * - Rate limited to 30 requests per minute
+ *
  * This completely removes the lesson from the database
  */
 export async function deleteLesson(lessonId: string) {
@@ -832,6 +876,17 @@ export async function deleteLesson(lessonId: string) {
       return {
         success: false,
         error: ERROR_MESSAGES.AUTH.NOT_LOGGED_IN,
+      };
+    }
+
+    // SECURITY: Rate limiting - prevent deletion spam
+    const identifier = getRateLimitIdentifier(user.id);
+    const rateLimitResult = await checkRateLimit(identifier, lessonRateLimit);
+
+    if (!rateLimitResult.success) {
+      return {
+        success: false,
+        error: rateLimitResult.error || 'Too many requests. Please try again later.',
       };
     }
 

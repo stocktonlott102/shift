@@ -28,7 +28,7 @@ export default function SubscribeButton({ priceId }: SubscribeButtonProps) {
 
     try {
       // Call server action to create Stripe Checkout Session
-      const result = await createCheckoutSession(priceId);
+      const result = await createCheckoutSession({ priceId });
 
       if (result.success && result.sessionUrl) {
         // Redirect to Stripe Checkout

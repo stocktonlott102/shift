@@ -10,6 +10,17 @@ import {
   LessonHistoryFilters,
 } from '@/lib/types/lesson-history';
 import { LessonWithClient } from '@/lib/types/lesson';
+import {
+  ConfirmLessonSchema,
+  MarkLessonNoShowSchema,
+  GetLessonHistorySchema,
+  CalculateUnpaidBalanceSchema,
+  MarkLessonAsPaidSchema,
+  MarkLessonAsUnpaidSchema,
+  MarkAllLessonsPaidSchema,
+  MarkParticipantPaidSchema,
+  MarkLessonParticipantsPaidSchema,
+} from '@/lib/validations/lesson-history';
 
 /**
  * Get all outstanding lessons that need confirmation
@@ -143,11 +154,23 @@ export async function getOutstandingLessonsCount(): Promise<
 /**
  * Confirm that a lesson occurred
  * Updates lesson status from Scheduled to Completed
+ * Uses Zod validation to prevent injection attacks
  */
-export async function confirmLesson(
-  lessonId: string
-): Promise<LessonHistoryActionResponse> {
+export async function confirmLesson(input: unknown): Promise<LessonHistoryActionResponse> {
   try {
+    // SECURITY: Validate and sanitize all input using Zod
+    const validationResult = ConfirmLessonSchema.safeParse(input);
+
+    if (!validationResult.success) {
+      const firstError = validationResult.error.issues[0];
+      return {
+        success: false,
+        error: `${firstError.path.join('.')}: ${firstError.message}`,
+      };
+    }
+
+    const { lessonId } = validationResult.data;
+
     const supabase = await createClient();
 
     // Verify authentication
@@ -236,11 +259,23 @@ export async function confirmLesson(
 /**
  * Mark a lesson as No Show
  * Updates lesson status to 'No Show' and cancels associated invoice
+ * Uses Zod validation to prevent injection attacks
  */
-export async function markLessonNoShow(
-  lessonId: string
-): Promise<LessonHistoryActionResponse> {
+export async function markLessonNoShow(input: unknown): Promise<LessonHistoryActionResponse> {
   try {
+    // SECURITY: Validate and sanitize all input using Zod
+    const validationResult = MarkLessonNoShowSchema.safeParse(input);
+
+    if (!validationResult.success) {
+      const firstError = validationResult.error.issues[0];
+      return {
+        success: false,
+        error: `${firstError.path.join('.')}: ${firstError.message}`,
+      };
+    }
+
+    const { lessonId } = validationResult.data;
+
     const supabase = await createClient();
 
     // Verify authentication
@@ -335,12 +370,23 @@ export async function markLessonNoShow(
  * Get lesson history for a specific client
  * Returns completed lessons with invoice/payment information
  * Handles both legacy (client_id) and new (lesson_participants) lesson structures
+ * Uses Zod validation to prevent injection attacks
  */
-export async function getLessonHistory(
-  clientId: string,
-  filters?: LessonHistoryFilters
-): Promise<LessonHistoryActionResponse<LessonHistoryEntry[]>> {
+export async function getLessonHistory(input: unknown): Promise<LessonHistoryActionResponse<LessonHistoryEntry[]>> {
   try {
+    // SECURITY: Validate and sanitize all input using Zod
+    const validationResult = GetLessonHistorySchema.safeParse(input);
+
+    if (!validationResult.success) {
+      const firstError = validationResult.error.issues[0];
+      return {
+        success: false,
+        error: `${firstError.path.join('.')}: ${firstError.message}`,
+      };
+    }
+
+    const { clientId, filters } = validationResult.data;
+
     const supabase = await createClient();
 
     // Verify authentication
@@ -475,11 +521,23 @@ export async function getLessonHistory(
 /**
  * Calculate unpaid balance for a specific client
  * Sums all lesson_participants amount_owed for COMPLETED lessons (confirmed by coach)
+ * Uses Zod validation to prevent injection attacks
  */
-export async function calculateUnpaidBalance(
-  clientId: string
-): Promise<LessonHistoryActionResponse<{ balance: number }>> {
+export async function calculateUnpaidBalance(input: unknown): Promise<LessonHistoryActionResponse<{ balance: number }>> {
   try {
+    // SECURITY: Validate and sanitize all input using Zod
+    const validationResult = CalculateUnpaidBalanceSchema.safeParse(input);
+
+    if (!validationResult.success) {
+      const firstError = validationResult.error.issues[0];
+      return {
+        success: false,
+        error: `${firstError.path.join('.')}: ${firstError.message}`,
+      };
+    }
+
+    const { clientId } = validationResult.data;
+
     const supabase = await createClient();
 
     // Verify authentication
@@ -583,12 +641,23 @@ export async function calculateUnpaidBalance(
 /**
  * Mark a single lesson as paid
  * Updates invoice payment_status to 'Paid' and sets paid_at timestamp
+ * Uses Zod validation to prevent injection attacks
  */
-export async function markLessonAsPaid(
-  lessonId: string,
-  clientId?: string
-): Promise<LessonHistoryActionResponse> {
+export async function markLessonAsPaid(input: unknown): Promise<LessonHistoryActionResponse> {
   try {
+    // SECURITY: Validate and sanitize all input using Zod
+    const validationResult = MarkLessonAsPaidSchema.safeParse(input);
+
+    if (!validationResult.success) {
+      const firstError = validationResult.error.issues[0];
+      return {
+        success: false,
+        error: `${firstError.path.join('.')}: ${firstError.message}`,
+      };
+    }
+
+    const { lessonId, clientId } = validationResult.data;
+
     const supabase = await createClient();
 
     // Verify authentication
@@ -672,12 +741,23 @@ export async function markLessonAsPaid(
 /**
  * Mark a lesson participant as unpaid
  * Sets payment_status back to Pending and clears paid_at
+ * Uses Zod validation to prevent injection attacks
  */
-export async function markLessonAsUnpaid(
-  lessonId: string,
-  clientId?: string
-): Promise<LessonHistoryActionResponse> {
+export async function markLessonAsUnpaid(input: unknown): Promise<LessonHistoryActionResponse> {
   try {
+    // SECURITY: Validate and sanitize all input using Zod
+    const validationResult = MarkLessonAsUnpaidSchema.safeParse(input);
+
+    if (!validationResult.success) {
+      const firstError = validationResult.error.issues[0];
+      return {
+        success: false,
+        error: `${firstError.path.join('.')}: ${firstError.message}`,
+      };
+    }
+
+    const { lessonId, clientId } = validationResult.data;
+
     const supabase = await createClient();
 
     // Verify authentication
@@ -759,11 +839,23 @@ export async function markLessonAsUnpaid(
 /**
  * Mark all unpaid lessons for a client as paid
  * Bulk updates all invoices with Pending status to Paid
+ * Uses Zod validation to prevent injection attacks
  */
-export async function markAllLessonsPaid(
-  clientId: string
-): Promise<LessonHistoryActionResponse<{ count: number; totalAmount: number }>> {
+export async function markAllLessonsPaid(input: unknown): Promise<LessonHistoryActionResponse<{ count: number; totalAmount: number }>> {
   try {
+    // SECURITY: Validate and sanitize all input using Zod
+    const validationResult = MarkAllLessonsPaidSchema.safeParse(input);
+
+    if (!validationResult.success) {
+      const firstError = validationResult.error.issues[0];
+      return {
+        success: false,
+        error: `${firstError.path.join('.')}: ${firstError.message}`,
+      };
+    }
+
+    const { clientId } = validationResult.data;
+
     const supabase = await createClient();
 
     // Verify authentication
@@ -882,12 +974,23 @@ export async function markAllLessonsPaid(
  * Mark a lesson participant as paid
  * Updates the lesson_participants record's amount_owed to 0
  * Used for multi-client lessons where payments are tracked per participant
+ * Uses Zod validation to prevent injection attacks
  */
-export async function markParticipantPaid(
-  lessonId: string,
-  clientId: string
-): Promise<LessonHistoryActionResponse> {
+export async function markParticipantPaid(input: unknown): Promise<LessonHistoryActionResponse> {
   try {
+    // SECURITY: Validate and sanitize all input using Zod
+    const validationResult = MarkParticipantPaidSchema.safeParse(input);
+
+    if (!validationResult.success) {
+      const firstError = validationResult.error.issues[0];
+      return {
+        success: false,
+        error: `${firstError.path.join('.')}: ${firstError.message}`,
+      };
+    }
+
+    const { lessonId, clientId } = validationResult.data;
+
     const supabase = await createClient();
 
     // Verify authentication
@@ -957,11 +1060,23 @@ export async function markParticipantPaid(
  * Mark all participants in a lesson as paid
  * Updates all lesson_participants records to have amount_owed = 0
  * Used when confirming a completed multi-client lesson
+ * Uses Zod validation to prevent injection attacks
  */
-export async function markLessonParticipantsPaid(
-  lessonId: string
-): Promise<LessonHistoryActionResponse> {
+export async function markLessonParticipantsPaid(input: unknown): Promise<LessonHistoryActionResponse> {
   try {
+    // SECURITY: Validate and sanitize all input using Zod
+    const validationResult = MarkLessonParticipantsPaidSchema.safeParse(input);
+
+    if (!validationResult.success) {
+      const firstError = validationResult.error.issues[0];
+      return {
+        success: false,
+        error: `${firstError.path.join('.')}: ${firstError.message}`,
+      };
+    }
+
+    const { lessonId } = validationResult.data;
+
     const supabase = await createClient();
 
     // Verify authentication

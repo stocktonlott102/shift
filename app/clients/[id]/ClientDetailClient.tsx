@@ -41,13 +41,13 @@ export default function ClientDetailClient({ client, coachId }: ClientDetailClie
     setIsLoadingHistory(true);
 
     // Fetch lesson history
-    const historyResult = await getLessonHistory(client.id);
+    const historyResult = await getLessonHistory({ clientId: client.id });
     if (historyResult.success && historyResult.data) {
       setLessonHistory(historyResult.data);
     }
 
     // Fetch unpaid balance
-    const balanceResult = await calculateUnpaidBalance(client.id);
+    const balanceResult = await calculateUnpaidBalance({ clientId: client.id });
     if (balanceResult.success && balanceResult.data) {
       setUnpaidBalance(balanceResult.data.balance);
     }

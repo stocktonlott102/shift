@@ -37,7 +37,7 @@ export default async function ClientsPage() {
   // Fetch unpaid balances for all clients
   const clientsWithBalances = await Promise.all(
     clients.map(async (client) => {
-      const balanceResult = await calculateUnpaidBalance(client.id);
+      const balanceResult = await calculateUnpaidBalance({ clientId: client.id });
       const balance = balanceResult.success && balanceResult.data ? balanceResult.data.balance : 0;
       return { ...client, unpaidBalance: balance };
     })

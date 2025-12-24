@@ -87,7 +87,7 @@ export default function LessonHistoryTable({
     setError(null);
     setSuccessMessage(null);
 
-    const result = await markLessonAsPaid(lessonId, clientId);
+    const result = await markLessonAsPaid({ lessonId, clientId });
 
     if (result.success) {
       setSuccessMessage(result.message || 'Lesson marked as paid');
@@ -105,7 +105,7 @@ export default function LessonHistoryTable({
     setError(null);
     setSuccessMessage(null);
 
-    const result = await markLessonAsUnpaid(lessonId, clientId);
+    const result = await markLessonAsUnpaid({ lessonId, clientId });
 
     if (result.success) {
       setSuccessMessage(result.message || 'Lesson marked as unpaid');
@@ -123,7 +123,7 @@ export default function LessonHistoryTable({
     setError(null);
     setSuccessMessage(null);
 
-    const result = await markAllLessonsPaid(clientId);
+    const result = await markAllLessonsPaid({ clientId });
 
     if (result.success) {
       setSuccessMessage(result.message || `${result.data?.count} lessons marked as paid`);

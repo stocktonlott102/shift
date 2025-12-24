@@ -52,7 +52,7 @@ export default async function DashboardPage() {
   // Calculate total outstanding payments across all clients
   const outstandingPayments = await Promise.all(
     clients.map(async (client) => {
-      const balanceResult = await calculateUnpaidBalance(client.id);
+      const balanceResult = await calculateUnpaidBalance({ clientId: client.id });
       return balanceResult.success && balanceResult.data ? balanceResult.data.balance : 0;
     })
   );

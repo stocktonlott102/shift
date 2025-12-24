@@ -36,7 +36,7 @@ export default function RecurringLessonsTable({
     setIsLoading(true);
     setError(null);
 
-    const result = await getRecurringSeriesForClient(clientId);
+    const result = await getRecurringSeriesForClient({ clientId });
 
     if (result.success && result.data) {
       setSeries(result.data);

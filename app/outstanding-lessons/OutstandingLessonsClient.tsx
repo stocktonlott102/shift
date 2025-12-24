@@ -60,7 +60,7 @@ export default function OutstandingLessonsClient({ coachId }: OutstandingLessons
   const handleConfirmLesson = async (lessonId: string) => {
     setActionLoading(lessonId);
 
-    const result = await confirmLesson(lessonId);
+    const result = await confirmLesson({ lessonId });
 
     if (result.success) {
       // Optimistically remove lesson from list
@@ -76,7 +76,7 @@ export default function OutstandingLessonsClient({ coachId }: OutstandingLessons
     setActionLoading(lessonId);
     setOpenMenuId(null);
 
-    const result = await markLessonNoShow(lessonId);
+    const result = await markLessonNoShow({ lessonId });
 
     if (result.success) {
       // Optimistically remove lesson from list

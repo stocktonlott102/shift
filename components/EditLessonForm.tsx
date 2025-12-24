@@ -124,7 +124,7 @@ export default function EditLessonForm({
 
       // If this is a recurring lesson and "All future lessons" is selected, use the recurring update action
       if (lesson.is_recurring && recurringEditMode === 'all_future') {
-        result = await updateFutureLessonsInSeries(lesson.id, basePayload);
+        result = await updateFutureLessonsInSeries({ lessonId: lesson.id, updates: basePayload });
       } else {
         // Otherwise, update just this lesson
         result = await updateLesson(lesson.id, basePayload);
@@ -154,7 +154,7 @@ export default function EditLessonForm({
     setError(null);
 
     try {
-      const result = await deleteFutureLessonsInSeries(lesson.id);
+      const result = await deleteFutureLessonsInSeries({ lessonId: lesson.id });
 
       if (!result.success) {
         setError(result.error || 'Failed to delete future lessons.');

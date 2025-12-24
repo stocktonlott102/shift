@@ -3,6 +3,11 @@
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { ERROR_MESSAGES } from '@/lib/constants/messages';
+import {
+  GetRecurringSeriesSchema,
+  UpdateFutureLessonsSchema,
+  DeleteFutureLessonsSchema,
+} from '@/lib/validations/recurring-lesson';
 
 interface RecurringSeries {
   id: string; // parent lesson ID
@@ -26,9 +31,24 @@ interface ActionResponse<T = void> {
 /**
  * Get all recurring lesson series for a specific client
  * Returns only the parent lessons (one per series) with summary info
+ * Uses Zod validation to prevent injection attacks
  */
-export async function getRecurringSeriesForClient(clientId: string): Promise<ActionResponse<RecurringSeries[]>> {
+export async function getRecurringSeriesForClient(input: unknown): Promise<ActionResponse<RecurringSeries[]>> {
   try {
+    // SECURITY: Validate and sanitize all input using Zod
+    const validationResult = GetRecurringSeriesSchema.safeParse(input);
+
+    if (!validationResult.success) {
+      const firstError = validationResult.error.issues[0];
+      return {
+        success: false,
+        error: `${firstError.path.join('.')}: ${firstError.message}`,
+        data: [],
+      };
+    }
+
+    const { clientId } = validationResult.data;
+
     const supabase = await createClient();
 
     const {
@@ -144,19 +164,23 @@ export async function getRecurringSeriesForClient(clientId: string): Promise<Act
 
 /**
  * Update all future lessons in a recurring series
+ * Uses Zod validation to prevent injection attacks
  */
-export async function updateFutureLessonsInSeries(
-  lessonId: string,
-  updates: {
-    title?: string;
-    description?: string;
-    start_time?: string;
-    end_time?: string;
-    location?: string;
-    status?: string;
-  }
-): Promise<ActionResponse> {
+export async function updateFutureLessonsInSeries(input: unknown): Promise<ActionResponse> {
   try {
+    // SECURITY: Validate and sanitize all input using Zod
+    const validationResult = UpdateFutureLessonsSchema.safeParse(input);
+
+    if (!validationResult.success) {
+      const firstError = validationResult.error.issues[0];
+      return {
+        success: false,
+        error: `${firstError.path.join('.')}: ${firstError.message}`,
+      };
+    }
+
+    const { lessonId, updates } = validationResult.data;
+
     const supabase = await createClient();
 
     const {
@@ -223,9 +247,23 @@ export async function updateFutureLessonsInSeries(
 
 /**
  * Delete all future lessons in a recurring series
+ * Uses Zod validation to prevent injection attacks
  */
-export async function deleteFutureLessonsInSeries(lessonId: string): Promise<ActionResponse> {
+export async function deleteFutureLessonsInSeries(input: unknown): Promise<ActionResponse> {
   try {
+    // SECURITY: Validate and sanitize all input using Zod
+    const validationResult = DeleteFutureLessonsSchema.safeParse(input);
+
+    if (!validationResult.success) {
+      const firstError = validationResult.error.issues[0];
+      return {
+        success: false,
+        error: `${firstError.path.join('.')}: ${firstError.message}`,
+      };
+    }
+
+    const { lessonId } = validationResult.data;
+
     const supabase = await createClient();
 
     const {

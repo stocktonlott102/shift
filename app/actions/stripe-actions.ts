@@ -2,6 +2,8 @@
 
 import Stripe from 'stripe';
 import { createClient } from '@/lib/supabase/server';
+import { CreateCheckoutSessionSchema } from '@/lib/validations/stripe';
+import { checkRateLimit, paymentRateLimit, getRateLimitIdentifier } from '@/lib/rate-limit';
 
 /**
  * Stripe Server Actions
@@ -59,12 +61,27 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
  * - Only authenticated coaches can create checkout sessions
  * - Session URLs expire after 24 hours
  * - Customer email is pre-filled from authenticated user
+ * - Uses Zod validation to prevent injection attacks
+ * - Rate limited to 10 requests per hour to prevent payment spam
  *
- * @param priceId - Stripe Price ID for the subscription plan
+ * @param input - Checkout session data (unknown type for security validation)
  * @returns Object with session URL or error message
  */
-export async function createCheckoutSession(priceId: string) {
+export async function createCheckoutSession(input: unknown) {
   try {
+    // SECURITY: Validate and sanitize all input using Zod
+    const validationResult = CreateCheckoutSessionSchema.safeParse(input);
+
+    if (!validationResult.success) {
+      const firstError = validationResult.error.issues[0];
+      return {
+        success: false,
+        error: `${firstError.path.join('.')}: ${firstError.message}`,
+      };
+    }
+
+    const { priceId } = validationResult.data;
+
     console.log('[createCheckoutSession] Starting checkout session creation');
     console.log('[createCheckoutSession] Price ID:', priceId);
 
@@ -85,6 +102,18 @@ export async function createCheckoutSession(priceId: string) {
 
     console.log('[createCheckoutSession] User authenticated:', user.id);
 
+    // SECURITY: Rate limiting - prevent payment spam and fraudulent activity
+    const identifier = getRateLimitIdentifier(user.id);
+    const rateLimitResult = await checkRateLimit(identifier, paymentRateLimit);
+
+    if (!rateLimitResult.success) {
+      console.error('[createCheckoutSession] Rate limit exceeded for user:', user.id);
+      return {
+        success: false,
+        error: rateLimitResult.error || 'Too many payment requests. Please try again later.',
+      };
+    }
+
     // Validate required environment variables
     // Use runtime environment variable that works on Vercel
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
@@ -99,14 +128,6 @@ export async function createCheckoutSession(priceId: string) {
       return {
         success: false,
         error: 'Server configuration error. Please contact support.',
-      };
-    }
-
-    // Validate priceId parameter
-    if (!priceId || !priceId.startsWith('price_')) {
-      return {
-        success: false,
-        error: 'Invalid price ID provided.',
       };
     }
 
@@ -204,6 +225,9 @@ export async function createCheckoutSession(priceId: string) {
  *
  * Allows coaches to manage their subscription (update payment method, cancel, etc.)
  *
+ * SECURITY:
+ * - Rate limited to 10 requests per hour
+ *
  * @returns Object with portal URL or error message
  */
 export async function createCustomerPortalSession() {
@@ -219,6 +243,17 @@ export async function createCustomerPortalSession() {
       return {
         success: false,
         error: 'You must be logged in to access the customer portal.',
+      };
+    }
+
+    // SECURITY: Rate limiting - prevent portal access spam
+    const identifier = getRateLimitIdentifier(user.id);
+    const rateLimitResult = await checkRateLimit(identifier, paymentRateLimit);
+
+    if (!rateLimitResult.success) {
+      return {
+        success: false,
+        error: rateLimitResult.error || 'Too many requests. Please try again later.',
       };
     }
 
