@@ -2,11 +2,28 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function Navigation() {
   const pathname = usePathname();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect screen size on mount and resize
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768); // md breakpoint
+    };
+
+    // Check on mount
+    checkMobile();
+
+    // Add resize listener
+    window.addEventListener('resize', checkMobile);
+
+    // Cleanup
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const navItems = [
     {
@@ -76,8 +93,9 @@ export default function Navigation() {
   return (
     <>
       {/* Desktop Navigation - Top Horizontal Bar */}
-      <nav className="hidden md:block bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
-        <div className="w-full px-4 sm:px-6 lg:px-8">
+      {!isMobile && (
+        <nav className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo/Brand */}
             <div className="flex-shrink-0 flex items-center gap-2">
@@ -137,10 +155,12 @@ export default function Navigation() {
             </div>
           </div>
         </div>
-      </nav>
+        </nav>
+      )}
 
       {/* Mobile Navigation - Bottom Tab Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-50">
+      {isMobile && (
+        <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-50">
         <div className="flex items-center justify-around h-16">
           {navItems.map((item) => {
             const active = isActive(item.href);
@@ -174,11 +194,12 @@ export default function Navigation() {
             );
           })}
         </div>
-      </nav>
+        </nav>
+      )}
 
       {/* Mobile Menu Overlay */}
-      {showMobileMenu && (
-        <div className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setShowMobileMenu(false)}>
+      {isMobile && showMobileMenu && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setShowMobileMenu(false)}>
           <div
             className="fixed bottom-16 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg"
             onClick={(e) => e.stopPropagation()}
@@ -204,7 +225,7 @@ export default function Navigation() {
       )}
 
       {/* Mobile Bottom Padding - Prevents content from being hidden behind bottom nav */}
-      <div className="md:hidden h-16" />
+      {isMobile && <div className="h-16" />}
     </>
   );
 }
