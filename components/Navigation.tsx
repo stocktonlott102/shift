@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 export default function Navigation() {
   const pathname = usePathname();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState<boolean | null>(null);
 
   // Detect screen size on mount and resize
   useEffect(() => {
@@ -24,6 +24,11 @@ export default function Navigation() {
     // Cleanup
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Don't render anything until we know the screen size (prevents hydration mismatch)
+  if (isMobile === null) {
+    return null;
+  }
 
   const navItems = [
     {
