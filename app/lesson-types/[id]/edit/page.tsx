@@ -12,7 +12,7 @@ export default function EditLessonTypePage() {
 
   const [name, setName] = useState('');
   const [hourlyRate, setHourlyRate] = useState<number>(60);
-  const [color, setColor] = useState(LESSON_TYPE_CONSTRAINTS.DEFAULT_COLOR);
+  const [color, setColor] = useState<string>(LESSON_TYPE_CONSTRAINTS.DEFAULT_COLOR);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
