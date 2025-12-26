@@ -263,3 +263,65 @@ export async function getLessonTypes(): Promise<ActionResponse<LessonType[]>> {
     };
   }
 }
+
+/**
+ * Get a specific lesson type by ID
+ */
+export async function getLessonTypeById(id: string): Promise<ActionResponse<LessonType>> {
+  try {
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return {
+        success: false,
+        error: ERROR_MESSAGES.AUTH.NOT_LOGGED_IN,
+      };
+    }
+
+    // SECURITY: Validate id is a valid UUID
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return {
+        success: false,
+        error: 'Invalid lesson type ID format',
+      };
+    }
+
+    const { data, error } = await supabase
+      .from('lesson_types')
+      .select('*')
+      .eq('id', id)
+      .eq('coach_id', user.id)
+      .single();
+
+    if (error) {
+      console.error('Error fetching lesson type:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to fetch lesson type.',
+      };
+    }
+
+    if (!data) {
+      return {
+        success: false,
+        error: 'Lesson type not found.',
+      };
+    }
+
+    return {
+      success: true,
+      data: data as LessonType,
+    };
+  } catch (error: any) {
+    console.error('Unexpected error fetching lesson type:', error);
+    return {
+      success: false,
+      error: ERROR_MESSAGES.GENERIC.UNEXPECTED_ERROR,
+    };
+  }
+}
