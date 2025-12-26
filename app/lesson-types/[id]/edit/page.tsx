@@ -13,7 +13,6 @@ export default function EditLessonTypePage() {
   const [name, setName] = useState('');
   const [hourlyRate, setHourlyRate] = useState<number>(60);
   const [color, setColor] = useState(LESSON_TYPE_CONSTRAINTS.DEFAULT_COLOR);
-  const [titleTemplate, setTitleTemplate] = useState(LESSON_TYPE_CONSTRAINTS.DEFAULT_TITLE_TEMPLATE);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -28,7 +27,6 @@ export default function EditLessonTypePage() {
         setName(t.name);
         setHourlyRate(t.hourly_rate);
         setColor(t.color);
-        setTitleTemplate(t.title_template);
       }
       setLoading(false);
     })();
@@ -42,7 +40,6 @@ export default function EditLessonTypePage() {
       name,
       hourly_rate: hourlyRate,
       color,
-      title_template: titleTemplate,
     });
     if (!res.success) {
       setError(res.error || 'Update failed');
@@ -74,11 +71,6 @@ export default function EditLessonTypePage() {
         <div>
           <label className="block text-sm font-medium mb-1">Color</label>
           <input type="color" className="w-16 h-10 p-0 border rounded" value={color} onChange={e => setColor(e.target.value)} />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Title Template</label>
-          <input className="w-full border rounded px-3 py-2" value={titleTemplate} onChange={e => setTitleTemplate(e.target.value)} maxLength={LESSON_TYPE_CONSTRAINTS.TITLE_TEMPLATE_MAX_LENGTH} required />
-          <p className="text-xs text-gray-600 mt-1">Include {'{client_names}'} where participant names should appear.</p>
         </div>
         {error && <p className="text-red-600">{error}</p>}
         <div className="flex gap-2">
