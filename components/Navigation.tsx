@@ -76,7 +76,7 @@ export default function Navigation() {
   return (
     <>
       {/* Desktop Navigation - Top Horizontal Bar */}
-      <nav className="hidden md:block bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+      <nav className="hidden sm:block bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo/Brand */}
@@ -140,7 +140,7 @@ export default function Navigation() {
       </nav>
 
       {/* Mobile Navigation - Bottom Tab Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-50">
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-50">
         <div className="flex items-center justify-around h-16">
           {navItems.map((item) => {
             const active = isActive(item.href);
@@ -178,7 +178,7 @@ export default function Navigation() {
 
       {/* Mobile Menu Overlay */}
       {showMobileMenu && (
-        <div className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setShowMobileMenu(false)}>
+        <div className="sm:hidden fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setShowMobileMenu(false)}>
           <div
             className="fixed bottom-16 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg"
             onClick={(e) => e.stopPropagation()}
@@ -204,7 +204,7 @@ export default function Navigation() {
       )}
 
       {/* Mobile Bottom Padding - Prevents content from being hidden behind bottom nav */}
-      <div className="md:hidden h-16" />
+      <div className="sm:hidden h-16" />
     </>
   );
 }
