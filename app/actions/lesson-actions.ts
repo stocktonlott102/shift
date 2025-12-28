@@ -503,6 +503,18 @@ export async function getLessons(filters?: {
           name,
           color,
           hourly_rate
+        ),
+        lesson_participants (
+          id,
+          client_id,
+          amount_owed,
+          client:clients (
+            id,
+            first_name,
+            last_name,
+            parent_email,
+            parent_phone
+          )
         )
       `
       )
@@ -589,6 +601,18 @@ export async function getLessonById(lessonId: string) {
           name,
           color,
           hourly_rate
+        ),
+        lesson_participants (
+          id,
+          client_id,
+          amount_owed,
+          client:clients (
+            id,
+            first_name,
+            last_name,
+            parent_email,
+            parent_phone
+          )
         )
       `
       )
