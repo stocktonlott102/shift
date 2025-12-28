@@ -43,14 +43,15 @@ export async function addClient(formData: unknown) {
     const validatedData = validationResult.data;
 
     // Insert the client into the database with validated data
+    // Convert empty strings to null for optional fields
     const { data, error } = await supabase
       .from('clients')
       .insert({
         coach_id: user.id, // Always use authenticated user's ID for security
         first_name: validatedData.first_name,
         last_name: validatedData.last_name,
-        parent_email: validatedData.parent_email,
-        parent_phone: validatedData.parent_phone,
+        parent_email: validatedData.parent_email && validatedData.parent_email.trim() ? validatedData.parent_email : null,
+        parent_phone: validatedData.parent_phone && validatedData.parent_phone.trim() ? validatedData.parent_phone : null,
         notes: validatedData.notes || null,
       })
       .select()
@@ -240,13 +241,14 @@ export async function updateClient(clientId: string, formData: unknown) {
     const validatedData = validationResult.data;
 
     // Update the client - RLS ensures user owns this client
+    // Convert empty strings to null for optional fields
     const { data, error } = await supabase
       .from('clients')
       .update({
         first_name: validatedData.first_name,
         last_name: validatedData.last_name,
-        parent_email: validatedData.parent_email,
-        parent_phone: validatedData.parent_phone,
+        parent_email: validatedData.parent_email && validatedData.parent_email.trim() ? validatedData.parent_email : null,
+        parent_phone: validatedData.parent_phone && validatedData.parent_phone.trim() ? validatedData.parent_phone : null,
         notes: validatedData.notes || null,
       })
       .eq('id', clientId)
