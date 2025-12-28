@@ -497,6 +497,12 @@ export async function getLessons(filters?: {
           last_name,
           parent_email,
           parent_phone
+        ),
+        lesson_type:lesson_types (
+          id,
+          name,
+          color,
+          hourly_rate
         )
       `
       )
@@ -566,7 +572,7 @@ export async function getLessonById(lessonId: string) {
     }
 
     // Query single lesson with client data - RLS automatically ensures it belongs to this coach
-    const { data, error } = await supabase
+    const { data, error} = await supabase
       .from('lessons')
       .select(
         `
@@ -577,6 +583,12 @@ export async function getLessonById(lessonId: string) {
           last_name,
           parent_email,
           parent_phone
+        ),
+        lesson_type:lesson_types (
+          id,
+          name,
+          color,
+          hourly_rate
         )
       `
       )

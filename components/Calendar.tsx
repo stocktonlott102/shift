@@ -543,12 +543,13 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
 
                         {/* Events for this day */}
                         {dayEventsForCol.map((ev) => {
-                          const cls = `scheduler-event ${ev.status === 'Completed' ? 'completed' : ev.status === 'Cancelled' ? 'cancelled' : ev.status === 'No Show' ? 'noshow' : 'scheduled'} ${ev.height <= (HOUR_HEIGHT_PX * (20 / 60)) ? 'small' : ''}`;
+                          const cls = `scheduler-event ${ev.height <= (HOUR_HEIGHT_PX * (20 / 60)) ? 'small' : ''}`;
+                          const backgroundColor = ev.resource.lesson_type?.color || '#3B82F6';
                           return (
                             <div
                               key={ev.id}
                               className={cls}
-                              style={{ top: ev.top, height: ev.height }}
+                              style={{ top: ev.top, height: ev.height, backgroundColor }}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onSelectEvent?.({ id: ev.id, resource: ev.resource });
@@ -622,12 +623,13 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
                 )}
 
                 {events.map((ev) => {
-                  const cls = `scheduler-event ${ev.status === 'Completed' ? 'completed' : ev.status === 'Cancelled' ? 'cancelled' : ev.status === 'No Show' ? 'noshow' : 'scheduled'} ${ev.height <= (HOUR_HEIGHT_PX * (20 / 60)) ? 'small' : ''}`;
+                  const cls = `scheduler-event ${ev.height <= (HOUR_HEIGHT_PX * (20 / 60)) ? 'small' : ''}`;
+                  const backgroundColor = ev.resource.lesson_type?.color || '#3B82F6';
                   return (
                     <div
                       key={ev.id}
                       className={cls}
-                      style={{ top: ev.top, height: ev.height }}
+                      style={{ top: ev.top, height: ev.height, backgroundColor }}
                       onClick={(e) => {
                         e.stopPropagation();
                         onSelectEvent?.({ id: ev.id, resource: ev.resource });

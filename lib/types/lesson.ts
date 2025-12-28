@@ -163,6 +163,12 @@ export interface LessonWithClient extends Lesson {
     parent_email: string;
     parent_phone: string;
   } | null;
+  lesson_type?: {
+    id: string;
+    name: string;
+    color: string;
+    hourly_rate: number;
+  } | null;
   lesson_participants?: Array<{
     id: string;
     client_id: string;
