@@ -12,8 +12,8 @@ export type ValidationError = {
 export function validateClientData(data: {
   first_name: string;
   last_name: string;
-  parent_email: string;
-  parent_phone: string;
+  parent_email?: string;
+  parent_phone?: string;
 }) {
   const errors: ValidationError[] = [];
 
@@ -25,15 +25,13 @@ export function validateClientData(data: {
     errors.push({ field: 'last_name', message: 'Last name is required.' });
   }
 
-  if (!data.parent_email || !data.parent_email.trim()) {
-    errors.push({ field: 'parent_email', message: ERROR_MESSAGES.CLIENT.EMAIL_REQUIRED });
-  } else if (!VALIDATION_PATTERNS.EMAIL.test(data.parent_email)) {
+  // Email is optional, but if provided, must be valid
+  if (data.parent_email && data.parent_email.trim() && !VALIDATION_PATTERNS.EMAIL.test(data.parent_email)) {
     errors.push({ field: 'parent_email', message: ERROR_MESSAGES.CLIENT.INVALID_EMAIL });
   }
 
-  if (!data.parent_phone || !data.parent_phone.trim()) {
-    errors.push({ field: 'parent_phone', message: ERROR_MESSAGES.CLIENT.PHONE_REQUIRED });
-  } else if (!VALIDATION_PATTERNS.PHONE.test(data.parent_phone)) {
+  // Phone is optional, but if provided, must be valid
+  if (data.parent_phone && data.parent_phone.trim() && !VALIDATION_PATTERNS.PHONE.test(data.parent_phone)) {
     errors.push({ field: 'parent_phone', message: ERROR_MESSAGES.CLIENT.INVALID_PHONE });
   }
 

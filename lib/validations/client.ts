@@ -35,7 +35,9 @@ const emailSchema = z
   .email({ message: 'Invalid email address' })
   .max(255, 'Email must be 255 characters or less')
   .trim()
-  .toLowerCase();
+  .toLowerCase()
+  .optional()
+  .or(z.literal(''));
 
 // Phone validation - flexible format support
 const phoneSchema = z
@@ -50,7 +52,9 @@ const phoneSchema = z
       return phonePattern.test(val);
     },
     { message: 'Phone number contains invalid characters' }
-  );
+  )
+  .optional()
+  .or(z.literal(''));
 
 // Notes validation - sanitizes longer text inputs
 const notesSchema = z

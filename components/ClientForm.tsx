@@ -181,13 +181,12 @@ export default function ClientForm({ coachId, client, onSuccess, onCancel }: Cli
             htmlFor="parentEmail"
             className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
           >
-            Parent Email <span className="text-red-500">*</span>
+            Parent Email
           </label>
           <input
             id="parentEmail"
             name="parentEmail"
             type="email"
-            required
             value={parentEmail}
             onChange={(e) => setParentEmail(e.target.value)}
             className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
@@ -205,13 +204,12 @@ export default function ClientForm({ coachId, client, onSuccess, onCancel }: Cli
             htmlFor="parentPhone"
             className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
           >
-            Parent Phone <span className="text-red-500">*</span>
+            Parent Phone
           </label>
           <input
             id="parentPhone"
             name="parentPhone"
             type="tel"
-            required
             value={parentPhone}
             onChange={(e) => setParentPhone(e.target.value)}
             className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
