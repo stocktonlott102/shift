@@ -76,11 +76,8 @@ export default function ClientForm({ coachId, client, onSuccess, onCancel }: Cli
         // Update existing client
         result = await updateClient(client.id, basePayload);
       } else {
-        // Create new client - add coach_id
-        result = await addClient({
-          coach_id: coachId,
-          ...basePayload,
-        });
+        // Create new client - coach_id is set server-side for security
+        result = await addClient(basePayload);
       }
 
       if (!result.success) {
