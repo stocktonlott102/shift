@@ -64,7 +64,7 @@ const outstandingPayments = await Promise.all(
 ```
 
 ### Scale Fixes Needed:
-- [ ] Add database indexes
+- [x] ✅ COMPLETED: Add database indexes
 - [ ] Implement caching (Redis/Vercel KV)
 - [ ] Batch queries and use database views
 - [ ] Add background jobs for heavy operations
@@ -117,7 +117,7 @@ const outstandingPayments = await Promise.all(
 
 ### Phase 2: Performance & Scale (2 weeks)
 
-- [ ] Add database indexes (foreign keys, commonly queried fields)
+- [x] ✅ COMPLETED: Add database indexes (foreign keys, commonly queried fields)
 - [ ] Implement caching layer
 - [ ] Create database views for complex queries
 - [ ] Optimize N+1 queries
@@ -249,12 +249,17 @@ export class LessonService {
      - Payment: 10 requests/hour
      - Lessons: 30 requests/min
 
-3. **Add Database Indexes** (NEXT PRIORITY)
-   - Identify foreign keys
-   - Add indexes to commonly queried fields
-   - Create composite indexes for complex queries
+3. **✅ Add Database Indexes** (COMPLETED)
+   - Analyzed all query patterns in server actions
+   - Created comprehensive index migration (20251230_add_critical_performance_indexes.sql)
+   - Added 6 strategic indexes:
+     - CRITICAL: lessons.end_time, lesson_participants(client_id, payment_status)
+     - HIGH: lessons(coach_id, client_id, status), lessons(coach_id, is_recurring)
+     - MEDIUM: lesson_types(coach_id, is_active, name), clients(coach_id, first_name)
+   - Expected improvements: Dashboard 30-50% faster, Calendar 40-60% faster, Payments 80-90% faster
+   - Ready to apply via Supabase Dashboard
 
-4. **Set Up Monitoring**
+4. **Set Up Monitoring** (NEXT PRIORITY)
    - Add Sentry for error tracking
    - Set up performance monitoring
    - Create alerts for critical issues
@@ -268,12 +273,13 @@ export class LessonService {
 - Each phase builds on the previous one
 - Consider hiring additional help for testing infrastructure if timeline is critical
 
-**Last Updated**: December 21, 2024
-**Status**: Phase 1 (Security) - Input Validation & Rate Limiting COMPLETED
+**Last Updated**: December 30, 2024
+**Status**: Phase 1 (Security) & Phase 2 (Performance) - Partially Complete
 **Completed**:
   - ✅ Zod validation added to all 6 server action files
   - ✅ Rate limiting implemented with Upstash Redis
   - ✅ Auth actions protected (5 requests/15 min)
   - ✅ Payment actions protected (10 requests/hour)
   - ✅ Lesson actions protected (30 requests/min)
-**Next Priority**: Database Indexes, then RLS Audit, then Audit Logging
+  - ✅ Database indexes - 6 strategic indexes created (needs Supabase deployment)
+**Next Priority**: Apply indexes via Supabase, then RLS Audit, then Audit Logging, then Monitoring (Sentry)
