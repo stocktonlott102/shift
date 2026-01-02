@@ -2,7 +2,6 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit, authRateLimit, getRateLimitIdentifier } from '@/lib/rate-limit';
-import { cookies } from 'next/headers';
 import { z } from 'zod';
 
 /**
@@ -25,7 +24,6 @@ const LoginSchema = z.object({
   password: z
     .string()
     .min(1, 'Password is required'),
-  rememberMe: z.boolean().optional().default(false),
   ipAddress: z.string().optional(),
 });
 
@@ -91,7 +89,7 @@ export async function loginAction(input: unknown): Promise<ActionResponse> {
       };
     }
 
-    const { email, password, rememberMe, ipAddress } = validationResult.data;
+    const { email, password, ipAddress } = validationResult.data;
 
     // SECURITY: Rate limiting - prevent brute force attacks
     const identifier = getRateLimitIdentifier(undefined, ipAddress || email);
@@ -136,16 +134,6 @@ export async function loginAction(input: unknown): Promise<ActionResponse> {
         error: 'Please verify your email address before logging in. Check your inbox for the confirmation link.',
       };
     }
-
-    // Set the remember_me cookie to control session persistence
-    const cookieStore = await cookies();
-    cookieStore.set('shift_remember_me', String(rememberMe), {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: rememberMe ? 60 * 60 * 24 * 7 : undefined, // 7 days if remember me, session otherwise
-      path: '/',
-    });
 
     return {
       success: true,
@@ -353,10 +341,6 @@ export async function logoutAction(input: unknown): Promise<ActionResponse> {
         error: 'Failed to log out. Please try again.',
       };
     }
-
-    // Clear the remember_me cookie on logout
-    const cookieStore = await cookies();
-    cookieStore.delete('shift_remember_me');
 
     return {
       success: true,

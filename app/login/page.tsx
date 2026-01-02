@@ -41,7 +41,6 @@ export default function LoginPage() {
       const result = await loginAction({
         email,
         password,
-        rememberMe,
         ipAddress: undefined, // Browser can't access real IP, will use email as fallback
       });
 
