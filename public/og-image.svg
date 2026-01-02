@@ -1,36 +1,40 @@
-<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
-  <!-- Background gradient matching your website -->
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <!-- Dark purple background matching your app's theme -->
   <defs>
-    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#EFF6FF;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#E0E7FF;stop-opacity:1" />
+    <!-- Purple to pink gradient for tagline badge -->
+    <linearGradient id="taglineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#A855F7" stop-opacity="1" />
+      <stop offset="50%" stop-color="#C026D3" stop-opacity="1" />
+      <stop offset="100%" stop-color="#EC4899" stop-opacity="1" />
     </linearGradient>
 
-    <!-- Pro badge gradient matching app (purple-500 to pink-500) -->
-    <linearGradient id="proBadge" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#A855F7;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#EC4899;stop-opacity:1" />
-    </linearGradient>
+    <!-- Text shadow filter for white text -->
+    <filter id="textShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dx="0" dy="2" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.3"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
   </defs>
 
-  <!-- Background -->
-  <rect width="1200" height="630" fill="url(#bgGradient)"/>
+  <!-- Dark purple background (indigo-950) -->
+  <rect width="1200" height="630" fill="#1e1b4b"/>
 
-  <!-- Main Title "Shift" - using indigo-400 from app navigation -->
-  <text x="470" y="310" font-family="system-ui, -apple-system, sans-serif" font-size="140" font-weight="700" fill="#818CF8">
+  <!-- Main Title "Shift" - using indigo-400 from app navigation (bigger font) -->
+  <text x="600" y="270" font-family="system-ui, -apple-system, sans-serif" font-size="160" font-weight="700" fill="#818CF8" text-anchor="middle">
     Shift
   </text>
 
-  <!-- Pro Badge Background (rounded rectangle) -->
-  <rect x="750" y="220" width="110" height="50" rx="8" fill="url(#proBadge)"/>
+  <!-- Tagline Badge Background (rounded rectangle with gradient) - wider -->
+  <rect x="120" y="340" width="960" height="90" rx="16" fill="url(#taglineGradient)"/>
 
-  <!-- Pro Badge Text -->
-  <text x="805" y="255" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="600" fill="#FFFFFF" text-anchor="middle">
-    Pro
-  </text>
-
-  <!-- Tagline - using indigo-600 -->
-  <text x="600" y="420" font-family="system-ui, -apple-system, sans-serif" font-size="32" fill="#4F46E5" text-anchor="middle">
+  <!-- Tagline Text (white on gradient background with shadow for distinction) -->
+  <text x="600" y="402" font-family="system-ui, -apple-system, sans-serif" font-size="36" font-weight="600" fill="#FFFFFF" text-anchor="middle" filter="url(#textShadow)">
     Streamline scheduling • Manage clients • Track revenue
   </text>
 </svg>
