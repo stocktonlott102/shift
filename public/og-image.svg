@@ -1,22 +1,36 @@
 <svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
-  <!-- Background gradient matching your website exactly -->
+  <!-- Background gradient matching your website -->
   <defs>
-    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#EFF6FF;stop-opacity:1" />
       <stop offset="100%" style="stop-color:#E0E7FF;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- Pro badge gradient matching app (purple-500 to pink-500) -->
+    <linearGradient id="proBadge" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#A855F7;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#EC4899;stop-opacity:1" />
     </linearGradient>
   </defs>
 
   <!-- Background -->
-  <rect width="1200" height="630" fill="url(#gradient)"/>
+  <rect width="1200" height="630" fill="url(#bgGradient)"/>
 
-  <!-- Main Title - matching your website's text-gray-900 -->
-  <text x="600" y="300" font-family="Arial, sans-serif" font-size="140" font-weight="bold" fill="#111827" text-anchor="middle">
+  <!-- Main Title "Shift" - using indigo-400 from app navigation -->
+  <text x="470" y="310" font-family="system-ui, -apple-system, sans-serif" font-size="140" font-weight="700" fill="#818CF8">
     Shift
   </text>
 
-  <!-- Tagline - using indigo-600 to match your buttons -->
-  <text x="600" y="420" font-family="Arial, sans-serif" font-size="32" fill="#4F46E5" text-anchor="middle">
+  <!-- Pro Badge Background (rounded rectangle) -->
+  <rect x="750" y="220" width="110" height="50" rx="8" fill="url(#proBadge)"/>
+
+  <!-- Pro Badge Text -->
+  <text x="805" y="255" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="600" fill="#FFFFFF" text-anchor="middle">
+    Pro
+  </text>
+
+  <!-- Tagline - using indigo-600 -->
+  <text x="600" y="420" font-family="system-ui, -apple-system, sans-serif" font-size="32" fill="#4F46E5" text-anchor="middle">
     Streamline scheduling • Manage clients • Track revenue
   </text>
 </svg>
