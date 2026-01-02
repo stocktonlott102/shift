@@ -28,17 +28,7 @@ export async function updateSession(request: NextRequest) {
             request,
           });
           cookiesToSet.forEach(({ name, value, options }) => {
-            // Check for remember_me preference in cookies
-            const rememberMeCookie = request.cookies.get('shift_remember_me');
-            const shouldPersist = rememberMeCookie?.value === 'true';
-
-            // Set cookies with proper expiration based on Remember Me preference
-            const cookieOptions = {
-              ...options,
-              // If Remember Me is checked: 7 days, otherwise: session cookie (no maxAge)
-              maxAge: shouldPersist ? (options?.maxAge || 60 * 60 * 24 * 7) : undefined,
-            };
-            supabaseResponse.cookies.set(name, value, cookieOptions);
+            supabaseResponse.cookies.set(name, value, options);
           });
         },
       },
