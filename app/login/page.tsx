@@ -16,25 +16,6 @@ export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
 
-  useEffect(() => {
-    // On page load, check if this was a temporary session that should be cleared
-    const checkTempSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session && !sessionStorage.getItem('shift_temp_session')) {
-        // Session exists but no temp flag in sessionStorage
-        // Check if this was marked as a temporary session
-        const wasTemp = localStorage.getItem('shift_was_temp_session');
-        if (wasTemp === 'true') {
-          // Browser was restarted without Remember Me, so clear the session
-          await supabase.auth.signOut();
-          localStorage.removeItem('shift_was_temp_session');
-        }
-      }
-    };
-    
-    checkTempSession();
-  }, [supabase.auth]);
 
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -61,6 +42,7 @@ export default function LoginPage() {
       const result = await loginAction({
         email,
         password,
+        rememberMe,
         ipAddress: undefined, // Browser can't access real IP, will use email as fallback
       });
 
@@ -70,26 +52,8 @@ export default function LoginPage() {
         return;
       }
 
-      // Login successful - now get the session from Supabase client
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (session) {
-        // Handle Remember Me functionality
-        if (!rememberMe) {
-          // If Remember Me is NOT checked, mark this as a temporary session
-          sessionStorage.setItem('shift_temp_session', 'true');
-          localStorage.setItem('shift_was_temp_session', 'true');
-        } else {
-          // Remember Me IS checked - clear any temp flags
-          localStorage.removeItem('shift_was_temp_session');
-        }
-
-        // Successfully logged in, redirect to calendar
-        router.push('/calendar');
-      } else {
-        setError('Session creation failed. Please try again.');
-        setIsLoading(false);
-      }
+      // Login successful - redirect to calendar
+      router.push('/calendar');
     } catch (err: any) {
       console.error('Login error:', err);
       setError(err.message || 'An error occurred during login. Please try again.');

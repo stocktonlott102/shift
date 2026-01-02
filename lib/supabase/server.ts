@@ -24,8 +24,18 @@ export async function createClient() {
         },
         setAll(cookiesToSet) {
           try {
+            // Check for remember_me preference
+            const rememberMeCookie = cookieStore.get('shift_remember_me');
+            const shouldPersist = rememberMeCookie?.value === 'true';
+
             cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options);
+              // Set cookies with proper expiration based on Remember Me preference
+              const cookieOptions = {
+                ...options,
+                // If Remember Me is checked: 7 days, otherwise: session cookie (no maxAge)
+                maxAge: shouldPersist ? (options?.maxAge || 60 * 60 * 24 * 7) : undefined,
+              };
+              cookieStore.set(name, value, cookieOptions);
             });
           } catch (error) {
             // The `setAll` method was called from a Server Component.
