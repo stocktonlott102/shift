@@ -15,10 +15,11 @@ export const metadata: Metadata = {
     siteName: 'Shift',
     images: [
       {
-        url: '/og-image.png',
+        url: '/og-image.svg',
         width: 1200,
         height: 630,
         alt: 'Shift - Coaching Business Management',
+        type: 'image/svg+xml',
       }
     ],
     locale: 'en_US',
@@ -28,7 +29,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Shift',
     description: 'Streamline your coaching business with intelligent scheduling, client management, and revenue tracking.',
-    images: ['/og-image.png'],
+    images: ['/og-image.svg'],
   },
   icons: {
     icon: '/favicon.ico',
