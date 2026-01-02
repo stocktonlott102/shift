@@ -5,8 +5,34 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Next.js App",
-  description: "Generated with Next.js App Router, TypeScript, and Tailwind CSS",
+  title: "Shift - Coaching Business Management",
+  description: "Streamline your coaching business with intelligent scheduling, client management, and revenue tracking.",
+  metadataBase: new URL('https://myshift.space'),
+  openGraph: {
+    title: 'Shift',
+    description: 'Streamline your coaching business with intelligent scheduling, client management, and revenue tracking.',
+    url: 'https://myshift.space',
+    siteName: 'Shift',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Shift - Coaching Business Management',
+      }
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Shift',
+    description: 'Streamline your coaching business with intelligent scheduling, client management, and revenue tracking.',
+    images: ['/og-image.png'],
+  },
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({
