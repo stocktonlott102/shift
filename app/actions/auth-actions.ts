@@ -124,6 +124,17 @@ export async function loginAction(input: unknown): Promise<ActionResponse> {
       };
     }
 
+    // SECURITY: Check if email is confirmed
+    if (!data.user.email_confirmed_at) {
+      // Sign out the user since they shouldn't be logged in
+      await supabase.auth.signOut();
+
+      return {
+        success: false,
+        error: 'Please verify your email address before logging in. Check your inbox for the confirmation link.',
+      };
+    }
+
     return {
       success: true,
       data: {
