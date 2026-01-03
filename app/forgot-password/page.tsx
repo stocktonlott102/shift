@@ -73,7 +73,7 @@ export default function ForgotPasswordPage() {
                 Check your email
               </h1>
               <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                We've sent a password reset link to <span className="font-semibold">{email}</span>
+                We&apos;ve sent a password reset link to <span className="font-semibold">{email}</span>
               </p>
             </div>
 
@@ -97,7 +97,7 @@ export default function ForgotPasswordPage() {
                 onClick={() => setSuccess(false)}
                 className="block w-full px-4 py-3 text-center text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
               >
-                Didn't receive the email?
+                Didn&apos;t receive the email?
               </button>
             </div>
           </div>
@@ -116,7 +116,7 @@ export default function ForgotPasswordPage() {
               Reset password
             </h1>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              Enter your email address and we'll send you a link to reset your password
+              Enter your email address and we&apos;ll send you a link to reset your password
             </p>
           </div>
 
