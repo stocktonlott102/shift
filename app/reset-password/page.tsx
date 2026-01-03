@@ -21,28 +21,52 @@ export default function ResetPasswordPage() {
       try {
         const supabase = createClient();
 
-        // Check if we have a recovery token in the URL hash
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const accessToken = hashParams.get('access_token');
-        const refreshToken = hashParams.get('refresh_token');
-        const type = hashParams.get('type');
+        // For PKCE flow, check URL parameters (not hash)
+        const searchParams = new URLSearchParams(window.location.search);
+        const token = searchParams.get('token');
+        const type = searchParams.get('type');
 
-        if (type === 'recovery' && accessToken) {
-          // Exchange the tokens for a session
-          const { error: sessionError } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken || '',
+        if (type === 'recovery' && token) {
+          // Verify the OTP token to establish session (PKCE flow)
+          const { error: verifyError } = await supabase.auth.verifyOtp({
+            token_hash: token,
+            type: 'recovery',
           });
 
-          if (sessionError) {
-            console.error('Session error:', sessionError);
+          if (verifyError) {
+            console.error('Token verification error:', verifyError);
             setError('Invalid or expired reset link. Please request a new one.');
             setIsValidatingToken(false);
             return;
           }
 
-          // Clear the hash from the URL for security
+          // Clear the token from the URL for security
           window.history.replaceState(null, '', window.location.pathname);
+        } else {
+          // Also check hash for backwards compatibility with access_token flow
+          const hashParams = new URLSearchParams(window.location.hash.substring(1));
+          const accessToken = hashParams.get('access_token');
+          const hashType = hashParams.get('type');
+
+          if (hashType === 'recovery' && accessToken) {
+            const refreshToken = hashParams.get('refresh_token');
+
+            // Exchange the tokens for a session
+            const { error: sessionError } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || '',
+            });
+
+            if (sessionError) {
+              console.error('Session error:', sessionError);
+              setError('Invalid or expired reset link. Please request a new one.');
+              setIsValidatingToken(false);
+              return;
+            }
+
+            // Clear the hash from the URL for security
+            window.history.replaceState(null, '', window.location.pathname);
+          }
         }
 
         setIsValidatingToken(false);
