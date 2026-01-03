@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { updatePasswordAction } from '@/app/actions/auth-actions';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -12,6 +13,48 @@ export default function ResetPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [isValidatingToken, setIsValidatingToken] = useState(true);
+
+  // Handle the password reset token from the URL
+  useEffect(() => {
+    const handlePasswordReset = async () => {
+      try {
+        const supabase = createClient();
+
+        // Check if we have a recovery token in the URL hash
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+        const type = hashParams.get('type');
+
+        if (type === 'recovery' && accessToken) {
+          // Exchange the tokens for a session
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || '',
+          });
+
+          if (sessionError) {
+            console.error('Session error:', sessionError);
+            setError('Invalid or expired reset link. Please request a new one.');
+            setIsValidatingToken(false);
+            return;
+          }
+
+          // Clear the hash from the URL for security
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+
+        setIsValidatingToken(false);
+      } catch (err) {
+        console.error('Token validation error:', err);
+        setError('An error occurred. Please try again.');
+        setIsValidatingToken(false);
+      }
+    };
+
+    handlePasswordReset();
+  }, []);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -61,6 +104,24 @@ export default function ResetPasswordPage() {
       setIsLoading(false);
     }
   };
+
+  // Show loading state while validating token
+  if (isValidatingToken) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4">
+        <div className="max-w-md w-full">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 space-y-6">
+            <div className="text-center">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+              <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+                Validating reset link...
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (success) {
     return (
