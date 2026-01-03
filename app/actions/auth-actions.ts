@@ -55,9 +55,23 @@ const PasswordResetSchema = z.object({
   ipAddress: z.string().optional(),
 });
 
+/**
+ * Validation schema for updating password
+ */
+const UpdatePasswordSchema = z.object({
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number'),
+  ipAddress: z.string().optional(),
+});
+
 export type LoginInput = z.infer<typeof LoginSchema>;
 export type SignupInput = z.infer<typeof SignupSchema>;
 export type PasswordResetInput = z.infer<typeof PasswordResetSchema>;
+export type UpdatePasswordInput = z.infer<typeof UpdatePasswordSchema>;
 
 interface ActionResponse {
   success: boolean;
@@ -347,6 +361,67 @@ export async function logoutAction(input: unknown): Promise<ActionResponse> {
     };
   } catch (err: any) {
     console.error('Logout action error:', err);
+    return {
+      success: false,
+      error: 'An unexpected error occurred. Please try again.',
+    };
+  }
+}
+
+/**
+ * Server action to update password after reset with rate limiting
+ *
+ * SECURITY:
+ * - Rate limited to prevent password update spam
+ * - Strong password requirements enforced
+ * - Validates input with Zod
+ * - Requires valid reset token from email
+ */
+export async function updatePasswordAction(input: unknown): Promise<ActionResponse> {
+  try {
+    // SECURITY: Validate and sanitize all input using Zod
+    const validationResult = UpdatePasswordSchema.safeParse(input);
+
+    if (!validationResult.success) {
+      const firstError = validationResult.error.issues[0];
+      return {
+        success: false,
+        error: `${firstError.path.join('.')}: ${firstError.message}`,
+      };
+    }
+
+    const { password, ipAddress } = validationResult.data;
+
+    // SECURITY: Rate limiting - prevent password update spam
+    const identifier = getRateLimitIdentifier(undefined, ipAddress || 'update-password');
+    const rateLimitResult = await checkRateLimit(identifier, authRateLimit);
+
+    if (!rateLimitResult.success) {
+      return {
+        success: false,
+        error: rateLimitResult.error || 'Too many password update attempts. Please try again later.',
+      };
+    }
+
+    // Update password
+    const supabase = await createClient();
+    const { error: updateError } = await supabase.auth.updateUser({
+      password,
+    });
+
+    if (updateError) {
+      console.error('Password update error:', updateError);
+      return {
+        success: false,
+        error: 'Failed to update password. The reset link may have expired. Please request a new one.',
+      };
+    }
+
+    return {
+      success: true,
+    };
+  } catch (err: any) {
+    console.error('Update password action error:', err);
     return {
       success: false,
       error: 'An unexpected error occurred. Please try again.',
