@@ -119,11 +119,11 @@ export default async function DashboardPage() {
   return (
     <DashboardWrapper>
       <Navigation />
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-md">
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 dark:from-neutral-900 dark:to-neutral-800">
+      {/* Header - Hidden on mobile */}
+      <header className="hidden md:block bg-white dark:bg-neutral-800 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">
             Dashboard
           </h1>
         </div>

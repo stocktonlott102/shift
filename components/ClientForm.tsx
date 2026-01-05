@@ -113,22 +113,22 @@ export default function ClientForm({ coachId, client, onSuccess, onCancel }: Cli
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 md:p-8">
-      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+    <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-xl p-6 md:p-8">
+      <h2 className="text-2xl font-bold text-neutral-900 dark:text-white mb-6">
         {isEditMode ? 'Edit Client' : 'Add New Client'}
       </h2>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Error Message */}
         {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
+          <div className="bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 text-error-600 dark:text-error-400 px-4 py-3 rounded-lg text-sm">
             {error}
           </div>
         )}
 
         {/* Success Message */}
         {successMessage && (
-          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 px-4 py-3 rounded-lg text-sm">
+          <div className="bg-success-50 dark:bg-success-900/20 border border-success-200 dark:border-success-800 text-success-600 dark:text-success-400 px-4 py-3 rounded-lg text-sm">
             {successMessage}
           </div>
         )}
@@ -137,9 +137,9 @@ export default function ClientForm({ coachId, client, onSuccess, onCancel }: Cli
         <div>
           <label
             htmlFor="firstName"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2"
           >
-            First Name <span className="text-red-500">*</span>
+            First Name <span className="text-error-500">*</span>
           </label>
           <input
             id="firstName"
@@ -148,7 +148,7 @@ export default function ClientForm({ coachId, client, onSuccess, onCancel }: Cli
             required
             value={firstName}
             onChange={(e) => setFirstName(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
+            className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-white transition-colors"
             placeholder="Sarah"
             disabled={isLoading}
           />
@@ -158,9 +158,9 @@ export default function ClientForm({ coachId, client, onSuccess, onCancel }: Cli
         <div>
           <label
             htmlFor="lastName"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2"
           >
-            Last Name <span className="text-red-500">*</span>
+            Last Name <span className="text-error-500">*</span>
           </label>
           <input
             id="lastName"
@@ -169,7 +169,7 @@ export default function ClientForm({ coachId, client, onSuccess, onCancel }: Cli
             required
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
+            className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-white transition-colors"
             placeholder="Johnson"
             disabled={isLoading}
           />
@@ -179,9 +179,9 @@ export default function ClientForm({ coachId, client, onSuccess, onCancel }: Cli
         <div>
           <label
             htmlFor="parentEmail"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2"
           >
-            Parent Email
+            Email
           </label>
           <input
             id="parentEmail"
@@ -189,22 +189,19 @@ export default function ClientForm({ coachId, client, onSuccess, onCancel }: Cli
             type="email"
             value={parentEmail}
             onChange={(e) => setParentEmail(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
+            className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-white transition-colors"
             placeholder="parent@example.com"
             disabled={isLoading}
           />
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Used for invoices and payment communications
-          </p>
         </div>
 
         {/* Parent Phone */}
         <div>
           <label
             htmlFor="parentPhone"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2"
           >
-            Parent Phone
+            Phone
           </label>
           <input
             id="parentPhone"
@@ -212,22 +209,19 @@ export default function ClientForm({ coachId, client, onSuccess, onCancel }: Cli
             type="tel"
             value={parentPhone}
             onChange={(e) => setParentPhone(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
+            className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-white transition-colors"
             placeholder="(555) 123-4567"
             disabled={isLoading}
           />
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Used for automated SMS lesson reminders
-          </p>
         </div>
 
         {/* Notes Field */}
         <div>
           <label
             htmlFor="notes"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2"
           >
-            Coach Notes
+            Client Notes
           </label>
           <textarea
             id="notes"
@@ -235,13 +229,10 @@ export default function ClientForm({ coachId, client, onSuccess, onCancel }: Cli
             rows={4}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors resize-none"
+            className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-neutral-700 dark:text-white transition-colors resize-none"
             placeholder="Private notes about this athlete (goals, skill level, parent preferences, etc.)"
             disabled={isLoading}
           />
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            These notes are private and only visible to you
-          </p>
         </div>
 
         {/* Form Actions */}
@@ -250,7 +241,7 @@ export default function ClientForm({ coachId, client, onSuccess, onCancel }: Cli
           <button
             type="submit"
             disabled={isLoading}
-            className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 disabled:transform-none shadow-lg hover:shadow-xl disabled:cursor-not-allowed"
+            className="flex-1 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 disabled:transform-none shadow-lg hover:shadow-xl disabled:cursor-not-allowed"
           >
             {isLoading ? (
               <span className="flex items-center justify-center">
@@ -287,7 +278,7 @@ export default function ClientForm({ coachId, client, onSuccess, onCancel }: Cli
               type="button"
               onClick={onCancel}
               disabled={isLoading}
-              className="flex-1 sm:flex-none bg-white hover:bg-gray-50 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-semibold py-3 px-6 rounded-lg border-2 border-gray-300 dark:border-gray-600 transition-all duration-200 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="flex-1 sm:flex-none bg-white hover:bg-neutral-50 dark:bg-neutral-700 dark:hover:bg-neutral-600 text-neutral-700 dark:text-neutral-300 font-semibold py-3 px-6 rounded-lg border-2 border-neutral-300 dark:border-neutral-600 transition-all duration-200 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
               Cancel
             </button>

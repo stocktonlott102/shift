@@ -531,12 +531,10 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
                         {/* Hover indicator for this day column */}
                         {hoveredSlot && hoveredSlot.dayIndex === dayIdx && (
                           <div
-                            className="absolute left-0 right-0 pointer-events-none rounded-md"
+                            className="absolute left-0 right-0 pointer-events-none rounded-md bg-primary-100/10 border-2 border-primary-300 dark:bg-primary-400/10 dark:border-primary-500"
                             style={{
                               top: `${hoveredSlot.top}px`,
                               height: `${(DEFAULT_SLOT_DURATION_MINUTES / 60) * HOUR_HEIGHT_PX}px`,
-                              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                              border: '2px solid rgba(59, 130, 246, 0.3)',
                             }}
                           />
                         )}
@@ -612,12 +610,10 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
                 {/* Hover indicator */}
                 {hoveredSlot && hoveredSlot.dayIndex === undefined && (
                   <div
-                    className="absolute left-0 right-0 pointer-events-none rounded-md"
+                    className="absolute left-0 right-0 pointer-events-none rounded-md bg-primary-100/10 border-2 border-primary-300 dark:bg-primary-400/10 dark:border-primary-500"
                     style={{
                       top: `${hoveredSlot.top}px`,
                       height: `${(DEFAULT_SLOT_DURATION_MINUTES / 60) * HOUR_HEIGHT_PX}px`,
-                      backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                      border: '2px solid rgba(59, 130, 246, 0.3)',
                     }}
                   />
                 )}

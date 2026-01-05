@@ -99,15 +99,15 @@ export default function Navigation() {
     <>
       {/* Desktop Navigation - Top Horizontal Bar */}
       {!isMobile && (
-        <nav className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+        <nav className="fixed top-0 left-0 right-0 bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700 shadow-sm z-50">
           <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo/Brand */}
             <div className="flex-shrink-0 flex items-center gap-2">
-              <h1 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+              <h1 className="text-2xl font-bold text-primary-600 dark:text-primary-400">
                 Shift
               </h1>
-              <span className="px-2 py-0.5 text-xs font-semibold bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-md">
+              <span className="px-2 py-0.5 text-xs font-semibold bg-gradient-to-r from-secondary-purple to-secondary-pink text-white rounded-md">
                 Pro
               </span>
             </div>
@@ -122,8 +122,8 @@ export default function Navigation() {
                     href={item.href}
                     className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                       isActive(item.href)
-                        ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                        : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700'
                     }`}
                   >
                     {item.name}
@@ -137,8 +137,8 @@ export default function Navigation() {
                 href="/settings"
                 className={`p-2 rounded-full transition-all duration-200 ${
                   isActive('/settings')
-                    ? 'text-indigo-600 dark:text-indigo-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:scale-110'
+                    ? 'text-primary-600 dark:text-primary-400'
+                    : 'text-neutral-600 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 hover:scale-110'
                 }`}
                 title="Settings"
               >
@@ -165,7 +165,7 @@ export default function Navigation() {
 
       {/* Mobile Navigation - Bottom Tab Bar */}
       {isMobile && (
-        <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg z-50">
+        <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-neutral-800 border-t border-neutral-200 dark:border-neutral-700 shadow-lg z-50">
         <div className="flex items-center justify-around h-16">
           {navItems.map((item) => {
             const active = isActive(item.href);
@@ -175,7 +175,7 @@ export default function Navigation() {
                 <button
                   key={item.name}
                   onClick={() => setShowMobileMenu(!showMobileMenu)}
-                  className="flex flex-col items-center justify-center flex-1 py-2 text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                  className="flex flex-col items-center justify-center flex-1 py-2 text-neutral-600 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                 >
                   {item.icon}
                   <span className="text-xs mt-1 font-medium">{item.name}</span>
@@ -189,8 +189,8 @@ export default function Navigation() {
                 href={item.href}
                 className={`flex flex-col items-center justify-center flex-1 py-2 transition-colors ${
                   active
-                    ? 'text-indigo-600 dark:text-indigo-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400'
+                    ? 'text-primary-600 dark:text-primary-400'
+                    : 'text-neutral-600 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400'
                 }`}
               >
                 {item.icon}
@@ -206,20 +206,20 @@ export default function Navigation() {
       {isMobile && showMobileMenu && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setShowMobileMenu(false)}>
           <div
-            className="fixed bottom-16 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg"
+            className="fixed bottom-16 left-0 right-0 bg-white dark:bg-neutral-800 border-t border-neutral-200 dark:border-neutral-700 shadow-lg"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-4 space-y-2">
               <Link
                 href="/outstanding-lessons"
-                className="block px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="block px-4 py-3 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
                 onClick={() => setShowMobileMenu(false)}
               >
                 Outstanding Lessons
               </Link>
               <Link
                 href="/settings"
-                className="block px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="block px-4 py-3 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
                 onClick={() => setShowMobileMenu(false)}
               >
                 Settings
@@ -229,8 +229,9 @@ export default function Navigation() {
         </div>
       )}
 
-      {/* Mobile Bottom Padding - Prevents content from being hidden behind bottom nav */}
-      {isMobile && <div className="h-16" />}
+      {/* Spacing - Prevents content from being hidden behind nav */}
+      {/* Desktop: top padding for fixed top nav, Mobile: no top padding needed */}
+      {!isMobile && <div className="h-16" />}
     </>
   );
 }

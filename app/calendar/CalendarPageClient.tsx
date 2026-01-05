@@ -159,28 +159,39 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
   return (
     <>
       <Navigation />
-      <main className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
-        {/* Header */}
-        <div className="flex-shrink-0 px-4 sm:px-6 lg:px-8 py-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+      <main className="flex flex-col h-screen bg-neutral-50 dark:bg-neutral-900">
+        {/* Header - Hidden on mobile */}
+        <div className="hidden md:flex flex-shrink-0 px-4 sm:px-6 lg:px-8 py-4 border-b border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800">
 
         {/* Title and Book Button */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
+          <h1 className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-white">
             Lesson Calendar
           </h1>
 
           {/* Book Lesson Button */}
           <button
             onClick={() => setShowBookingForm(true)}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 sm:py-3 px-4 sm:px-6 rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl whitespace-nowrap text-sm sm:text-base"
+            className="bg-primary-600 hover:bg-primary-700 text-white font-semibold py-2 sm:py-3 px-4 sm:px-6 rounded-lg transition-colors whitespace-nowrap text-sm sm:text-base"
           >
             + Book Lesson
           </button>
         </div>
       </div>
 
+      {/* Floating Book Button - Mobile only */}
+      <button
+        onClick={() => setShowBookingForm(true)}
+        className="md:hidden fixed bottom-20 right-4 z-40 bg-primary-600 hover:bg-primary-700 text-white font-semibold p-4 rounded-full shadow-lg transition-all duration-200 hover:scale-110"
+        title="Book Lesson"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        </svg>
+      </button>
+
       {/* Calendar Component - fills remaining space */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden pb-20 md:pb-0">
         <Calendar
           lessons={lessons}
           onSelectSlot={handleSelectSlot}
