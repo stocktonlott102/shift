@@ -33,7 +33,7 @@ const nameSchema = z
 // Hourly rate validation
 const hourlyRateSchema = z
   .number()
-  .min(LESSON_TYPE_CONSTRAINTS.MIN_HOURLY_RATE, `Hourly rate must be at least $${LESSON_TYPE_CONSTRAINTS.MIN_HOURLY_RATE}`)
+  .min(LESSON_TYPE_CONSTRAINTS.MIN_HOURLY_RATE, `Hourly rate cannot be negative`)
   .max(LESSON_TYPE_CONSTRAINTS.MAX_HOURLY_RATE, `Hourly rate cannot exceed $${LESSON_TYPE_CONSTRAINTS.MAX_HOURLY_RATE}`)
   .refine((val) => Number.isFinite(val), { message: 'Hourly rate must be a valid number' })
   .refine((val) => {

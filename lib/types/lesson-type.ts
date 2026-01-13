@@ -34,7 +34,7 @@ export interface LessonTypeFormData extends CreateLessonTypeInput {
 export const LESSON_TYPE_CONSTRAINTS = {
   NAME_MAX_LENGTH: 50,
   MAX_HOURLY_RATE: 999,
-  MIN_HOURLY_RATE: 0.01,
+  MIN_HOURLY_RATE: 0,
   DEFAULT_COLOR: '#3B82F6',
 } as const;
 
