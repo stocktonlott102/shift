@@ -21,6 +21,12 @@ import {
   MarkParticipantPaidSchema,
   MarkLessonParticipantsPaidSchema,
 } from '@/lib/validations/lesson-history';
+import {
+  logLessonCompleted,
+  logLessonNoShow,
+  logPaymentMarkedPaid,
+  logBulkPaymentsMarkedPaid,
+} from '@/lib/audit-log';
 
 /**
  * Get all outstanding lessons that need confirmation
@@ -237,6 +243,9 @@ export async function confirmLesson(input: unknown): Promise<LessonHistoryAction
       };
     }
 
+    // Log lesson confirmation (fire-and-forget)
+    logLessonCompleted(user.id, lessonId, lesson.title || 'Unknown');
+
     // Revalidate pages that display lesson data
     revalidatePath('/outstanding-lessons');
     revalidatePath('/clients/[id]', 'page');
@@ -346,6 +355,9 @@ export async function markLessonNoShow(input: unknown): Promise<LessonHistoryAct
       console.error('Error updating invoice for no-show:', updateInvoiceError);
       // Note: We continue even if invoice update fails, as lesson status is more critical
     }
+
+    // Log lesson no-show (fire-and-forget)
+    logLessonNoShow(user.id, lessonId, lesson.title || 'Unknown');
 
     // Revalidate pages that display lesson data
     revalidatePath('/outstanding-lessons');
@@ -721,6 +733,27 @@ export async function markLessonAsPaid(input: unknown): Promise<LessonHistoryAct
       };
     }
 
+    // Log payment marked as paid (fire-and-forget)
+    // Fetch participant details for logging
+    if (clientId) {
+      const { data: participant } = await supabase
+        .from('lesson_participants')
+        .select('amount_owed, client:clients(first_name, last_name)')
+        .eq('lesson_id', lessonId)
+        .eq('client_id', clientId)
+        .single();
+
+      if (participant) {
+        const client = participant.client as any;
+        logPaymentMarkedPaid(
+          user.id,
+          `${lessonId}-${clientId}`,
+          client ? `${client.first_name} ${client.last_name}` : 'Unknown',
+          participant.amount_owed || 0
+        );
+      }
+    }
+
     // Revalidate pages that display payment data
     revalidatePath('/clients/[id]', 'page');
     revalidatePath('/dashboard');
@@ -950,6 +983,24 @@ export async function markAllLessonsPaid(input: unknown): Promise<LessonHistoryA
         success: false,
         error: ERROR_MESSAGES.PAYMENT.BULK_UPDATE_FAILED,
       };
+    }
+
+    // Log bulk payments marked as paid (fire-and-forget)
+    // Fetch client name for logging
+    const { data: clientData } = await supabase
+      .from('clients')
+      .select('first_name, last_name')
+      .eq('id', clientId)
+      .single();
+
+    if (clientData) {
+      logBulkPaymentsMarkedPaid(
+        user.id,
+        clientId,
+        `${clientData.first_name} ${clientData.last_name}`,
+        count,
+        Number(totalAmount.toFixed(2))
+      );
     }
 
     // Revalidate pages that display payment data

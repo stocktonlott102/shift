@@ -17,6 +17,7 @@
  * ```
  */
 
+import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
 // =====================================================
@@ -24,7 +25,7 @@ import { createClient } from '@/lib/supabase/server';
 // =====================================================
 
 export interface AuditLogEvent {
-  userId: string;
+  userId: string | null; // null for unauthenticated events (failed logins, password reset requests)
   userEmail?: string;
   action: string; // Format: 'resource.action' (e.g., 'client.created', 'lesson.deleted')
   resourceType: string; // e.g., 'client', 'lesson', 'payment'
@@ -47,6 +48,8 @@ export const AuditActions = {
   LESSON_UPDATED: 'lesson.updated',
   LESSON_DELETED: 'lesson.deleted',
   LESSON_CANCELLED: 'lesson.cancelled',
+  LESSON_COMPLETED: 'lesson.completed',
+  LESSON_NO_SHOW: 'lesson.no_show',
   RECURRING_LESSONS_CREATED: 'recurring_lessons.created',
   RECURRING_LESSONS_DELETED: 'recurring_lessons.deleted',
 
@@ -64,6 +67,16 @@ export const AuditActions = {
   USER_LOGGED_IN: 'auth.logged_in',
   USER_LOGGED_OUT: 'auth.logged_out',
   USER_SIGNUP: 'auth.signup',
+  AUTH_LOGIN_FAILED: 'auth.login_failed',
+  AUTH_PASSWORD_RESET_REQUESTED: 'auth.password_reset_requested',
+  AUTH_PASSWORD_UPDATED: 'auth.password_updated',
+
+  // Subscription actions
+  SUBSCRIPTION_CHECKOUT_CREATED: 'subscription.checkout_created',
+  SUBSCRIPTION_CREATED: 'subscription.created',
+  SUBSCRIPTION_UPDATED: 'subscription.updated',
+  SUBSCRIPTION_CANCELLED: 'subscription.cancelled',
+  SUBSCRIPTION_PAYMENT_FAILED: 'subscription.payment_failed',
 
   // Data export actions
   DATA_EXPORTED: 'data.exported',
@@ -104,19 +117,14 @@ export const ResourceTypes = {
  */
 export async function logAuditEvent(event: AuditLogEvent): Promise<boolean> {
   try {
-    const supabase = await createClient();
-
-    // Get user email if not provided
-    let userEmail = event.userEmail;
-    if (!userEmail) {
-      const { data: userData } = await supabase.auth.getUser();
-      userEmail = userData.user?.email;
-    }
+    // Use admin client to bypass RLS - audit logs need to be written
+    // regardless of user authentication state (e.g., failed login attempts)
+    const supabase = createAdminClient();
 
     // Insert audit log
     const { error } = await supabase.from('audit_logs').insert({
       user_id: event.userId,
-      user_email: userEmail,
+      user_email: event.userEmail || null,
       action: event.action,
       resource_type: event.resourceType,
       resource_id: event.resourceId || null,
@@ -394,4 +402,319 @@ export async function getAuditLogsByAction(action: string, limit: number = 50) {
     console.error('Error fetching audit logs by action:', error);
     return { success: false, error: error.message, data: [] };
   }
+}
+
+// =====================================================
+// Authentication Logging Helpers
+// =====================================================
+
+/**
+ * Log successful login
+ */
+export async function logLoginSuccess(userId: string, email: string) {
+  return logAuditEvent({
+    userId,
+    userEmail: email,
+    action: AuditActions.USER_LOGGED_IN,
+    resourceType: ResourceTypes.USER,
+    resourceId: userId,
+    description: `User logged in: ${email}`,
+  });
+}
+
+/**
+ * Log failed login attempt
+ * Uses null userId since there's no authenticated user
+ */
+export async function logLoginFailed(email: string, reason?: string) {
+  return logAuditEvent({
+    userId: null,
+    userEmail: email,
+    action: AuditActions.AUTH_LOGIN_FAILED,
+    resourceType: ResourceTypes.USER,
+    description: `Login failed for: ${email}`,
+    metadata: reason ? { reason } : undefined,
+  });
+}
+
+/**
+ * Log user logout
+ */
+export async function logLogout(userId: string, email?: string) {
+  return logAuditEvent({
+    userId,
+    userEmail: email,
+    action: AuditActions.USER_LOGGED_OUT,
+    resourceType: ResourceTypes.USER,
+    resourceId: userId,
+    description: 'User logged out',
+  });
+}
+
+/**
+ * Log password reset request
+ * Uses null userId since the user may not be authenticated
+ */
+export async function logPasswordResetRequested(email: string) {
+  return logAuditEvent({
+    userId: null,
+    userEmail: email,
+    action: AuditActions.AUTH_PASSWORD_RESET_REQUESTED,
+    resourceType: ResourceTypes.USER,
+    description: `Password reset requested for: ${email}`,
+  });
+}
+
+/**
+ * Log successful password update
+ */
+export async function logPasswordUpdated(userId: string, email?: string) {
+  return logAuditEvent({
+    userId,
+    userEmail: email,
+    action: AuditActions.AUTH_PASSWORD_UPDATED,
+    resourceType: ResourceTypes.USER,
+    resourceId: userId,
+    description: 'Password updated',
+  });
+}
+
+/**
+ * Log new user signup
+ */
+export async function logSignup(userId: string, email: string) {
+  return logAuditEvent({
+    userId,
+    userEmail: email,
+    action: AuditActions.USER_SIGNUP,
+    resourceType: ResourceTypes.USER,
+    resourceId: userId,
+    description: `New user signed up: ${email}`,
+  });
+}
+
+// =====================================================
+// Lesson Type Logging Helpers
+// =====================================================
+
+/**
+ * Log lesson type creation
+ */
+export async function logLessonTypeCreated(
+  userId: string,
+  lessonTypeId: string,
+  name: string,
+  hourlyRate: number
+) {
+  return logAuditEvent({
+    userId,
+    action: AuditActions.LESSON_TYPE_CREATED,
+    resourceType: ResourceTypes.LESSON_TYPE,
+    resourceId: lessonTypeId,
+    description: `Created lesson type: ${name}`,
+    metadata: { name, hourly_rate: hourlyRate },
+  });
+}
+
+/**
+ * Log lesson type update
+ */
+export async function logLessonTypeUpdated(
+  userId: string,
+  lessonTypeId: string,
+  name: string,
+  changes: Record<string, any>
+) {
+  return logAuditEvent({
+    userId,
+    action: AuditActions.LESSON_TYPE_UPDATED,
+    resourceType: ResourceTypes.LESSON_TYPE,
+    resourceId: lessonTypeId,
+    description: `Updated lesson type: ${name}`,
+    metadata: { changes },
+  });
+}
+
+/**
+ * Log lesson type deletion
+ */
+export async function logLessonTypeDeleted(
+  userId: string,
+  lessonTypeId: string,
+  name: string
+) {
+  return logAuditEvent({
+    userId,
+    action: AuditActions.LESSON_TYPE_DELETED,
+    resourceType: ResourceTypes.LESSON_TYPE,
+    resourceId: lessonTypeId,
+    description: `Deleted lesson type: ${name}`,
+  });
+}
+
+// =====================================================
+// Additional Lesson Logging Helpers
+// =====================================================
+
+/**
+ * Log lesson update
+ */
+export async function logLessonUpdated(
+  userId: string,
+  lessonId: string,
+  title: string,
+  changes: Record<string, any>
+) {
+  return logAuditEvent({
+    userId,
+    action: AuditActions.LESSON_UPDATED,
+    resourceType: ResourceTypes.LESSON,
+    resourceId: lessonId,
+    description: `Updated lesson: ${title}`,
+    metadata: { changes },
+  });
+}
+
+/**
+ * Log lesson cancellation
+ */
+export async function logLessonCancelled(
+  userId: string,
+  lessonId: string,
+  title: string,
+  reason?: string
+) {
+  return logAuditEvent({
+    userId,
+    action: AuditActions.LESSON_CANCELLED,
+    resourceType: ResourceTypes.LESSON,
+    resourceId: lessonId,
+    description: `Cancelled lesson: ${title}`,
+    metadata: reason ? { reason } : undefined,
+  });
+}
+
+/**
+ * Log lesson completion
+ */
+export async function logLessonCompleted(
+  userId: string,
+  lessonId: string,
+  title: string
+) {
+  return logAuditEvent({
+    userId,
+    action: AuditActions.LESSON_COMPLETED,
+    resourceType: ResourceTypes.LESSON,
+    resourceId: lessonId,
+    description: `Completed lesson: ${title}`,
+  });
+}
+
+/**
+ * Log lesson marked as no-show
+ */
+export async function logLessonNoShow(
+  userId: string,
+  lessonId: string,
+  title: string
+) {
+  return logAuditEvent({
+    userId,
+    action: AuditActions.LESSON_NO_SHOW,
+    resourceType: ResourceTypes.LESSON,
+    resourceId: lessonId,
+    description: `Marked lesson as no-show: ${title}`,
+  });
+}
+
+// =====================================================
+// Subscription Logging Helpers
+// =====================================================
+
+/**
+ * Log checkout session creation
+ */
+export async function logSubscriptionCheckoutCreated(
+  userId: string,
+  priceId: string
+) {
+  return logAuditEvent({
+    userId,
+    action: AuditActions.SUBSCRIPTION_CHECKOUT_CREATED,
+    resourceType: ResourceTypes.PROFILE,
+    resourceId: userId,
+    description: 'Checkout session created',
+    metadata: { price_id: priceId },
+  });
+}
+
+/**
+ * Log subscription activation
+ */
+export async function logSubscriptionCreated(
+  userId: string,
+  subscriptionId: string,
+  customerId: string
+) {
+  return logAuditEvent({
+    userId,
+    action: AuditActions.SUBSCRIPTION_CREATED,
+    resourceType: ResourceTypes.PROFILE,
+    resourceId: userId,
+    description: 'Subscription activated',
+    metadata: { subscription_id: subscriptionId, customer_id: customerId },
+  });
+}
+
+/**
+ * Log subscription status update
+ */
+export async function logSubscriptionUpdated(
+  userId: string,
+  subscriptionId: string,
+  newStatus: string
+) {
+  return logAuditEvent({
+    userId,
+    action: AuditActions.SUBSCRIPTION_UPDATED,
+    resourceType: ResourceTypes.PROFILE,
+    resourceId: userId,
+    description: `Subscription updated to ${newStatus}`,
+    metadata: { subscription_id: subscriptionId, new_status: newStatus },
+  });
+}
+
+/**
+ * Log subscription cancellation
+ */
+export async function logSubscriptionCancelled(
+  userId: string,
+  subscriptionId: string
+) {
+  return logAuditEvent({
+    userId,
+    action: AuditActions.SUBSCRIPTION_CANCELLED,
+    resourceType: ResourceTypes.PROFILE,
+    resourceId: userId,
+    description: 'Subscription cancelled',
+    metadata: { subscription_id: subscriptionId },
+  });
+}
+
+/**
+ * Log subscription payment failure
+ */
+export async function logSubscriptionPaymentFailed(
+  userId: string,
+  invoiceId: string
+) {
+  return logAuditEvent({
+    userId,
+    action: AuditActions.SUBSCRIPTION_PAYMENT_FAILED,
+    resourceType: ResourceTypes.PROFILE,
+    resourceId: userId,
+    description: 'Subscription payment failed',
+    metadata: { invoice_id: invoiceId },
+  });
 }

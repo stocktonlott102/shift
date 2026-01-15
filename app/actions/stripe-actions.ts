@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 import { createClient } from '@/lib/supabase/server';
 import { CreateCheckoutSessionSchema } from '@/lib/validations/stripe';
 import { checkRateLimit, paymentRateLimit, getRateLimitIdentifier } from '@/lib/rate-limit';
+import { logSubscriptionCheckoutCreated } from '@/lib/audit-log';
 
 /**
  * Stripe Server Actions
@@ -191,6 +192,9 @@ export async function createCheckoutSession(input: unknown) {
 
     console.log('[createCheckoutSession] Stripe session created:', session.id);
     console.log('[createCheckoutSession] Session URL:', session.url);
+
+    // Log checkout session creation (fire-and-forget)
+    logSubscriptionCheckoutCreated(user.id, priceId);
 
     // Return the session URL to redirect the user
     return {

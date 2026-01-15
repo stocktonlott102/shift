@@ -3,6 +3,11 @@
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { CreateClientSchema, UpdateClientSchema } from '@/lib/validations/client';
+import {
+  logClientCreated,
+  logClientUpdated,
+  logClientDeleted,
+} from '@/lib/audit-log';
 
 /**
  * Server Action: Create a new client
@@ -64,6 +69,17 @@ export async function addClient(formData: unknown) {
         error: `Failed to create client: ${error.message}`,
       };
     }
+
+    // Log client creation (fire-and-forget)
+    logClientCreated(
+      user.id,
+      data.id,
+      `${data.first_name} ${data.last_name}`,
+      {
+        email: data.parent_email,
+        phone: data.parent_phone,
+      }
+    );
 
     // Revalidate the clients page to show the new client
     revalidatePath('/dashboard/clients');
@@ -240,6 +256,13 @@ export async function updateClient(clientId: string, formData: unknown) {
 
     const validatedData = validationResult.data;
 
+    // Fetch old values for audit log comparison
+    const { data: oldClient } = await supabase
+      .from('clients')
+      .select('first_name, last_name, parent_email, parent_phone, notes')
+      .eq('id', clientId)
+      .single();
+
     // Update the client - RLS ensures user owns this client
     // Convert empty strings to null for optional fields
     const { data, error } = await supabase
@@ -262,6 +285,21 @@ export async function updateClient(clientId: string, formData: unknown) {
         error: `Failed to update client: ${error.message}`,
       };
     }
+
+    // Log client update (fire-and-forget)
+    logClientUpdated(
+      user.id,
+      clientId,
+      `${data.first_name} ${data.last_name}`,
+      oldClient || {},
+      {
+        first_name: data.first_name,
+        last_name: data.last_name,
+        parent_email: data.parent_email,
+        parent_phone: data.parent_phone,
+        notes: data.notes,
+      }
+    );
 
     // Revalidate relevant pages
     revalidatePath('/clients');
@@ -304,6 +342,13 @@ export async function deleteClient(clientId: string) {
       };
     }
 
+    // Fetch client name before delete for audit log
+    const { data: clientData } = await supabase
+      .from('clients')
+      .select('first_name, last_name')
+      .eq('id', clientId)
+      .single();
+
     // Delete the client (cascade will handle related records)
     const { error } = await supabase
       .from('clients')
@@ -317,6 +362,15 @@ export async function deleteClient(clientId: string) {
         success: false,
         error: `Failed to delete client: ${error.message}`,
       };
+    }
+
+    // Log client deletion (fire-and-forget)
+    if (clientData) {
+      logClientDeleted(
+        user.id,
+        clientId,
+        `${clientData.first_name} ${clientData.last_name}`
+      );
     }
 
     // Revalidate relevant pages

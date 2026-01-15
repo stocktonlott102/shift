@@ -16,6 +16,14 @@ import {
   type CreateLessonInput
 } from '@/lib/validations/lesson';
 import { checkRateLimit, lessonRateLimit, getRateLimitIdentifier } from '@/lib/rate-limit';
+import {
+  logLessonCreated,
+  logLessonUpdated,
+  logLessonCancelled,
+  logLessonCompleted,
+  logLessonDeleted,
+  logRecurringLessonsCreated,
+} from '@/lib/audit-log';
 
 type CreateSingleClientLessonInput = {
   client_id: string;
@@ -191,6 +199,12 @@ export async function createLesson(formData: CreateSingleClientLessonInput) {
         error: `Lesson created, but ${ERROR_MESSAGES.INVOICE.CREATE_FAILED}: ${invoiceError.message}`,
       };
     }
+
+    // Log lesson creation (fire-and-forget)
+    logLessonCreated(user.id, lesson.id, lesson.title, {
+      start_time: lesson.start_time,
+      client_id: formData.client_id,
+    });
 
     // Revalidate relevant pages
     revalidatePath('/lessons');
@@ -389,6 +403,14 @@ export async function createLessonWithParticipants(input: unknown) {
         return { success: false, error: ERROR_MESSAGES.LESSON.PARTICIPANTS_CREATE_FAILED };
       }
 
+      // Log recurring lessons creation (fire-and-forget)
+      logRecurringLessonsCreated(
+        user.id,
+        parentLessonId,
+        validatedInput.title,
+        createdLessons.length
+      );
+
       // Revalidate relevant pages
       revalidatePath('/calendar');
       revalidatePath('/dashboard');
@@ -440,6 +462,13 @@ export async function createLessonWithParticipants(input: unknown) {
       console.error('Error inserting lesson participants:', lpError);
       return { success: false, error: ERROR_MESSAGES.LESSON.PARTICIPANTS_CREATE_FAILED };
     }
+
+    // Log lesson creation (fire-and-forget)
+    logLessonCreated(user.id, lesson.id, lesson.title, {
+      start_time: lesson.start_time,
+      participant_count: validatedInput.client_ids.length,
+      total_amount: totalAmount,
+    });
 
     // Revalidate relevant pages
     revalidatePath('/calendar');
@@ -703,6 +732,13 @@ export async function updateLesson(lessonId: string, formData: unknown) {
 
     const validatedData = validationResult.data;
 
+    // Fetch old lesson data for audit log
+    const { data: oldLesson } = await supabase
+      .from('lessons')
+      .select('title')
+      .eq('id', lessonId)
+      .single();
+
     // Update the lesson - RLS ensures user owns this lesson
     const { data, error } = await supabase
       .from('lessons')
@@ -718,6 +754,9 @@ export async function updateLesson(lessonId: string, formData: unknown) {
         error: `${ERROR_MESSAGES.LESSON.UPDATE_FAILED}: ${error.message}`,
       };
     }
+
+    // Log lesson update (fire-and-forget)
+    logLessonUpdated(user.id, lessonId, data.title || oldLesson?.title || 'Unknown', validatedData);
 
     // Revalidate relevant pages
     revalidatePath('/lessons');
@@ -813,6 +852,9 @@ export async function cancelLesson(lessonId: string, cancelData?: unknown) {
       // Continue anyway - lesson was cancelled successfully
     }
 
+    // Log lesson cancellation (fire-and-forget)
+    logLessonCancelled(user.id, lessonId, data.title || 'Unknown', validatedCancelData?.cancelled_reason);
+
     // Revalidate relevant pages
     revalidatePath('/lessons');
     revalidatePath('/calendar');
@@ -870,6 +912,9 @@ export async function completeLesson(lessonId: string) {
       };
     }
 
+    // Log lesson completion (fire-and-forget)
+    logLessonCompleted(user.id, lessonId, data.title || 'Unknown');
+
     // Revalidate relevant pages
     revalidatePath('/lessons');
     revalidatePath('/calendar');
@@ -926,6 +971,13 @@ export async function deleteLesson(lessonId: string) {
       };
     }
 
+    // Fetch lesson title before delete for audit log
+    const { data: lessonData } = await supabase
+      .from('lessons')
+      .select('title')
+      .eq('id', lessonId)
+      .single();
+
     // Delete lesson - RLS policies ensure only the coach can delete their own lessons
     // Note: lesson_participants will be automatically deleted due to ON DELETE CASCADE
     const { error } = await supabase
@@ -941,6 +993,9 @@ export async function deleteLesson(lessonId: string) {
         error: `Failed to delete lesson: ${error.message}`,
       };
     }
+
+    // Log lesson deletion (fire-and-forget)
+    logLessonDeleted(user.id, lessonId, lessonData?.title || 'Unknown');
 
     // Revalidate relevant pages
     revalidatePath('/lessons');

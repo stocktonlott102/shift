@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import {
+  logSubscriptionCreated,
+  logSubscriptionUpdated,
+  logSubscriptionCancelled,
+  logSubscriptionPaymentFailed,
+} from '@/lib/audit-log';
 
 /**
  * Stripe Webhook Handler
@@ -187,6 +193,9 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     throw error;
   }
 
+  // Log subscription creation (fire-and-forget)
+  logSubscriptionCreated(userId, subscriptionId, customerId);
+
   console.log(`Successfully activated subscription for user ${userId}`);
   console.log('Updated profile:', data);
 }
@@ -258,6 +267,9 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     throw error;
   }
 
+  // Log subscription update (fire-and-forget)
+  logSubscriptionUpdated(targetUserId, subscription.id, subscriptionStatus);
+
   console.log(`Updated subscription status to ${subscriptionStatus} for user ${targetUserId}`);
   console.log('Updated profile:', data);
 }
@@ -299,6 +311,9 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     console.error('Error updating subscription to canceled:', error);
     throw error;
   }
+
+  // Log subscription cancellation (fire-and-forget)
+  logSubscriptionCancelled(profile.id, subscription.id);
 
   console.log(`Subscription canceled for user ${profile.id}`);
   console.log('Updated profile:', data);
@@ -342,6 +357,9 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
     console.error('Error updating subscription to past_due:', error);
     throw error;
   }
+
+  // Log subscription payment failure (fire-and-forget)
+  logSubscriptionPaymentFailed(profile.id, invoice.id);
 
   console.log(`Payment failed for user ${profile.id} - marked as past_due`);
   console.log('Updated profile:', data);

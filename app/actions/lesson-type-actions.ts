@@ -5,6 +5,11 @@ import { revalidatePath } from 'next/cache';
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/lib/constants/messages';
 import type { LessonType } from '@/lib/types/lesson-type';
 import { CreateLessonTypeSchema, UpdateLessonTypeSchema } from '@/lib/validations/lesson-type';
+import {
+  logLessonTypeCreated,
+  logLessonTypeUpdated,
+  logLessonTypeDeleted,
+} from '@/lib/audit-log';
 
 interface ActionResponse<T = void> {
   success: boolean;
@@ -72,6 +77,9 @@ export async function createLessonType(input: unknown): Promise<ActionResponse<L
         error: 'Failed to create lesson type.',
       };
     }
+
+    // Log lesson type creation (fire-and-forget)
+    logLessonTypeCreated(user.id, data.id, data.name, Number(data.hourly_rate));
 
     revalidatePath('/lesson-types');
 
@@ -153,6 +161,9 @@ export async function updateLessonType(id: string, input: unknown): Promise<Acti
       };
     }
 
+    // Log lesson type update (fire-and-forget)
+    logLessonTypeUpdated(user.id, id, data.name, validatedInput);
+
     revalidatePath('/lesson-types');
 
     return {
@@ -188,6 +199,13 @@ export async function deleteLessonType(id: string): Promise<ActionResponse> {
       };
     }
 
+    // Fetch lesson type name before soft-delete for audit log
+    const { data: lessonTypeData } = await supabase
+      .from('lesson_types')
+      .select('name')
+      .eq('id', id)
+      .single();
+
     const { error } = await supabase
       .from('lesson_types')
       .update({ is_active: false })
@@ -200,6 +218,11 @@ export async function deleteLessonType(id: string): Promise<ActionResponse> {
         success: false,
         error: error.message || 'Failed to delete lesson type.',
       };
+    }
+
+    // Log lesson type deletion (fire-and-forget)
+    if (lessonTypeData) {
+      logLessonTypeDeleted(user.id, id, lessonTypeData.name);
     }
 
     revalidatePath('/lesson-types');

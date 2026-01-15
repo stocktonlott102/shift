@@ -2,6 +2,14 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit, authRateLimit, getRateLimitIdentifier } from '@/lib/rate-limit';
+import {
+  logLoginSuccess,
+  logLoginFailed,
+  logSignup,
+  logLogout,
+  logPasswordResetRequested,
+  logPasswordUpdated,
+} from '@/lib/audit-log';
 import { z } from 'zod';
 
 /**
@@ -124,6 +132,9 @@ export async function loginAction(input: unknown): Promise<ActionResponse> {
     });
 
     if (signInError) {
+      // Log failed login attempt (fire-and-forget)
+      logLoginFailed(email, 'Invalid credentials');
+
       // Return generic error message to prevent user enumeration
       return {
         success: false,
@@ -143,11 +154,17 @@ export async function loginAction(input: unknown): Promise<ActionResponse> {
       // Sign out the user since they shouldn't be logged in
       await supabase.auth.signOut();
 
+      // Log failed login due to unverified email
+      logLoginFailed(email, 'Email not verified');
+
       return {
         success: false,
         error: 'Please verify your email address before logging in. Check your inbox for the confirmation link.',
       };
     }
+
+    // Log successful login (fire-and-forget)
+    logLoginSuccess(data.user.id, data.user.email || email);
 
     return {
       success: true,
@@ -231,6 +248,9 @@ export async function signupAction(input: unknown): Promise<ActionResponse> {
       };
     }
 
+    // Log successful signup (fire-and-forget)
+    logSignup(data.user.id, data.user.email || email);
+
     return {
       success: true,
       data: {
@@ -293,6 +313,10 @@ export async function requestPasswordResetAction(input: unknown): Promise<Action
       console.error('Password reset error:', resetError);
     }
 
+    // Log password reset request (fire-and-forget)
+    // We log regardless of whether email exists for security monitoring
+    logPasswordResetRequested(email);
+
     return {
       success: true,
       data: {
@@ -346,6 +370,10 @@ export async function logoutAction(input: unknown): Promise<ActionResponse> {
     }
 
     const supabase = await createClient();
+
+    // Get current user before signing out for audit log
+    const { data: { user } } = await supabase.auth.getUser();
+
     const { error: signOutError } = await supabase.auth.signOut();
 
     if (signOutError) {
@@ -354,6 +382,13 @@ export async function logoutAction(input: unknown): Promise<ActionResponse> {
         success: false,
         error: 'Failed to log out. Please try again.',
       };
+    }
+
+    // Log successful logout (fire-and-forget)
+    if (user) {
+      logLogout(user.id, user.email);
+    } else if (userId) {
+      logLogout(userId);
     }
 
     return {
@@ -415,6 +450,14 @@ export async function updatePasswordAction(input: unknown): Promise<ActionRespon
         success: false,
         error: 'Failed to update password. The reset link may have expired. Please request a new one.',
       };
+    }
+
+    // Get current user for audit log
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // Log successful password update (fire-and-forget)
+    if (user) {
+      logPasswordUpdated(user.id, user.email);
     }
 
     return {
