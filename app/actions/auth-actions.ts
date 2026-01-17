@@ -9,6 +9,7 @@ import {
   logLogout,
   logPasswordResetRequested,
   logPasswordUpdated,
+  logEmailChangeRequested,
 } from '@/lib/audit-log';
 import { z } from 'zod';
 
@@ -76,10 +77,22 @@ const UpdatePasswordSchema = z.object({
   ipAddress: z.string().optional(),
 });
 
+/**
+ * Validation schema for updating email
+ */
+const UpdateEmailSchema = z.object({
+  newEmail: z
+    .string()
+    .email('Invalid email address')
+    .min(1, 'Email is required'),
+  ipAddress: z.string().optional(),
+});
+
 export type LoginInput = z.infer<typeof LoginSchema>;
 export type SignupInput = z.infer<typeof SignupSchema>;
 export type PasswordResetInput = z.infer<typeof PasswordResetSchema>;
 export type UpdatePasswordInput = z.infer<typeof UpdatePasswordSchema>;
+export type UpdateEmailInput = z.infer<typeof UpdateEmailSchema>;
 
 interface ActionResponse {
   success: boolean;
@@ -465,6 +478,103 @@ export async function updatePasswordAction(input: unknown): Promise<ActionRespon
     };
   } catch (err: any) {
     console.error('Update password action error:', err);
+    return {
+      success: false,
+      error: 'An unexpected error occurred. Please try again.',
+    };
+  }
+}
+
+/**
+ * Server action to update user email with rate limiting
+ *
+ * SECURITY:
+ * - Rate limited to prevent email change spam
+ * - Requires user to be authenticated
+ * - Sends verification email to new address
+ * - Validates input with Zod
+ */
+export async function updateEmailAction(input: unknown): Promise<ActionResponse> {
+  try {
+    // SECURITY: Validate and sanitize all input using Zod
+    const validationResult = UpdateEmailSchema.safeParse(input);
+
+    if (!validationResult.success) {
+      const firstError = validationResult.error.issues[0];
+      return {
+        success: false,
+        error: `${firstError.path.join('.')}: ${firstError.message}`,
+      };
+    }
+
+    const { newEmail, ipAddress } = validationResult.data;
+
+    const supabase = await createClient();
+
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return {
+        success: false,
+        error: 'You must be logged in to change your email.',
+      };
+    }
+
+    // Check if new email is same as current
+    if (user.email?.toLowerCase() === newEmail.toLowerCase()) {
+      return {
+        success: false,
+        error: 'New email must be different from your current email.',
+      };
+    }
+
+    // SECURITY: Rate limiting - prevent email change spam
+    const identifier = getRateLimitIdentifier(user.id, ipAddress);
+    const rateLimitResult = await checkRateLimit(identifier, authRateLimit);
+
+    if (!rateLimitResult.success) {
+      return {
+        success: false,
+        error: rateLimitResult.error || 'Too many email change requests. Please try again later.',
+      };
+    }
+
+    // Request email change - Supabase will send verification email
+    const { error: updateError } = await supabase.auth.updateUser({
+      email: newEmail,
+    }, {
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/settings?email_confirmed=true`,
+    });
+
+    if (updateError) {
+      console.error('Email update error:', updateError);
+
+      // Handle specific errors
+      if (updateError.message.includes('already registered') || updateError.message.includes('already been registered')) {
+        return {
+          success: false,
+          error: 'This email address is already in use by another account.',
+        };
+      }
+
+      return {
+        success: false,
+        error: 'Failed to update email. Please try again.',
+      };
+    }
+
+    // Log email change request (fire-and-forget)
+    logEmailChangeRequested(user.id, user.email || '', newEmail);
+
+    return {
+      success: true,
+      data: {
+        email: newEmail,
+      },
+    };
+  } catch (err: any) {
+    console.error('Update email action error:', err);
     return {
       success: false,
       error: 'An unexpected error occurred. Please try again.',

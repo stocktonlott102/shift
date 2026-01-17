@@ -70,6 +70,8 @@ export const AuditActions = {
   AUTH_LOGIN_FAILED: 'auth.login_failed',
   AUTH_PASSWORD_RESET_REQUESTED: 'auth.password_reset_requested',
   AUTH_PASSWORD_UPDATED: 'auth.password_updated',
+  AUTH_EMAIL_CHANGE_REQUESTED: 'auth.email_change_requested',
+  AUTH_EMAIL_CHANGED: 'auth.email_changed',
 
   // Subscription actions
   SUBSCRIPTION_CHECKOUT_CREATED: 'subscription.checkout_created',
@@ -490,6 +492,36 @@ export async function logSignup(userId: string, email: string) {
     resourceType: ResourceTypes.USER,
     resourceId: userId,
     description: `New user signed up: ${email}`,
+  });
+}
+
+/**
+ * Log email change request
+ */
+export async function logEmailChangeRequested(userId: string, oldEmail: string, newEmail: string) {
+  return logAuditEvent({
+    userId,
+    userEmail: oldEmail,
+    action: AuditActions.AUTH_EMAIL_CHANGE_REQUESTED,
+    resourceType: ResourceTypes.USER,
+    resourceId: userId,
+    description: `Email change requested from ${oldEmail} to ${newEmail}`,
+    metadata: { old_email: oldEmail, new_email: newEmail },
+  });
+}
+
+/**
+ * Log successful email change
+ */
+export async function logEmailChanged(userId: string, oldEmail: string, newEmail: string) {
+  return logAuditEvent({
+    userId,
+    userEmail: newEmail,
+    action: AuditActions.AUTH_EMAIL_CHANGED,
+    resourceType: ResourceTypes.USER,
+    resourceId: userId,
+    description: `Email changed from ${oldEmail} to ${newEmail}`,
+    metadata: { old_email: oldEmail, new_email: newEmail },
   });
 }
 
