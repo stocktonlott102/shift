@@ -196,16 +196,6 @@ export default function SettingsClient({ user }: SettingsClientProps) {
                 )}
               </div>
 
-              {/* User ID (for debugging/support) */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  User ID
-                </label>
-                <div className="text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 px-4 py-3 rounded-lg font-mono text-xs">
-                  {user.id}
-                </div>
-              </div>
-
               {/* Account Created */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
