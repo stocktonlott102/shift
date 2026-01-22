@@ -355,57 +355,62 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
     <div className="flex flex-col h-full w-full">
       {/* Control Panel */}
       <div className="calendar-controls">
-        {/* Navigation */}
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-          <button
-            onClick={handleToday}
-            className="today-button"
-          >
-            Today
-          </button>
-          <button
-            onClick={handlePrevious}
-            className="nav-button"
-            aria-label="Previous"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <button
-            onClick={handleNext}
-            className="nav-button"
-            aria-label="Next"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-          <h2 className="date-header text-sm sm:text-base md:text-xl">
-            {formatDateHeader(currentDate, view)}
-          </h2>
-        </div>
+        {/* Mobile: Stacked layout, Desktop: Side by side */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
+          {/* Top row on mobile: Navigation arrows + Date */}
+          <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-3">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <button
+                onClick={handleToday}
+                className="today-button text-xs sm:text-sm"
+              >
+                Today
+              </button>
+              <button
+                onClick={handlePrevious}
+                className="nav-button"
+                aria-label="Previous"
+              >
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <button
+                onClick={handleNext}
+                className="nav-button"
+                aria-label="Next"
+              >
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+            <h2 className="date-header text-xs sm:text-base md:text-xl truncate">
+              {formatDateHeader(currentDate, view)}
+            </h2>
+          </div>
 
-        {/* View Switcher */}
-        <div className="view-switcher">
-          <button
-            onClick={() => setView('day')}
-            className={`view-button ${view === 'day' ? 'active' : ''}`}
-          >
-            Day
-          </button>
-          <button
-            onClick={() => setView('week')}
-            className={`view-button ${view === 'week' ? 'active' : ''}`}
-          >
-            Week
-          </button>
-          <button
-            onClick={() => setView('month')}
-            className={`view-button ${view === 'month' ? 'active' : ''}`}
-          >
-            Month
-          </button>
+          {/* View Switcher - Full width on mobile */}
+          <div className="view-switcher w-full sm:w-auto">
+            <button
+              onClick={() => setView('day')}
+              className={`view-button flex-1 sm:flex-none text-xs sm:text-sm ${view === 'day' ? 'active' : ''}`}
+            >
+              Day
+            </button>
+            <button
+              onClick={() => setView('week')}
+              className={`view-button flex-1 sm:flex-none text-xs sm:text-sm ${view === 'week' ? 'active' : ''}`}
+            >
+              Week
+            </button>
+            <button
+              onClick={() => setView('month')}
+              className={`view-button flex-1 sm:flex-none text-xs sm:text-sm ${view === 'month' ? 'active' : ''}`}
+            >
+              Month
+            </button>
+          </div>
         </div>
       </div>
 

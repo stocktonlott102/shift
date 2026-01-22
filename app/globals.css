@@ -93,12 +93,20 @@
     background: transparent;
     border: none;
     color: #6b7280;
-    padding: 0.5rem 1rem;
+    padding: 0.5rem 0.75rem;
     font-weight: 500;
-    font-size: 0.875rem;
+    font-size: 0.75rem;
     transition: all 0.2s;
     cursor: pointer;
     border-right: 1px solid #e5e7eb;
+    text-align: center;
+  }
+
+  @media (min-width: 640px) {
+    .view-button {
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+    }
   }
 
   .view-button:last-child {
@@ -117,8 +125,12 @@
   .scheduler-grid {
     position: relative;
     width: 100%;
-    background: var(--background);
+    background: #ffffff;
     border-radius: 0;
+  }
+
+  .dark .scheduler-grid {
+    background: #111827;
   }
 
   .scheduler-row {
@@ -134,8 +146,14 @@
     justify-content: center;
     padding-right: 0;
     color: var(--foreground);
-    font-size: 0.875rem;
+    font-size: 0.7rem;
     transform: translateY(-8px);
+  }
+
+  @media (min-width: 640px) {
+    .time-label {
+      font-size: 0.875rem;
+    }
   }
 
   .scheduler-event {
@@ -191,43 +209,52 @@
     z-index: 40;
   }
 
+  /* Dark mode - Tailwind class based */
+  .dark {
+    --scheduler-hour-border: 1px solid #374151;
+  }
+
+  .dark .time-label { color: #e5e7eb; }
+  .dark .date-header { color: #f3f4f6; }
+  .dark .calendar-controls {
+    background: #1f2937;
+    border-bottom-color: #374151;
+  }
+
+  .dark .today-button, .dark .nav-button {
+    background: #374151;
+    border-color: #4b5563;
+    color: #e5e7eb;
+  }
+
+  .dark .today-button:hover, .dark .nav-button:hover {
+    background: #4b5563;
+    border-color: #6b7280;
+  }
+
+  .dark .view-switcher {
+    background: #374151;
+    border-color: #4b5563;
+  }
+
+  .dark .view-button {
+    color: #9ca3af;
+    border-right-color: #4b5563;
+  }
+
+  .dark .view-button:hover {
+    background: #4b5563;
+  }
+
+  .dark .view-button.active {
+    background: #3B82F6;
+    color: #ffffff;
+  }
+
+  /* Fallback for prefers-color-scheme */
   @media (prefers-color-scheme: dark) {
     :root {
       --scheduler-hour-border: 1px solid #374151;
-    }
-    .scheduler-grid { background: #0b1015; }
-    .time-label { color: #e5e7eb; }
-    .date-header { color: #f3f4f6; }
-    .calendar-controls { border-bottom-color: #374151; }
-
-    .today-button, .nav-button {
-      background: #374151;
-      border-color: #4b5563;
-      color: #e5e7eb;
-    }
-
-    .today-button:hover, .nav-button:hover {
-      background: #4b5563;
-      border-color: #6b7280;
-    }
-
-    .view-switcher {
-      background: #374151;
-      border-color: #4b5563;
-    }
-
-    .view-button {
-      color: #9ca3af;
-      border-right-color: #4b5563;
-    }
-
-    .view-button:hover {
-      background: #4b5563;
-    }
-
-    .view-button.active {
-      background: #3B82F6;
-      color: #ffffff;
     }
   }
 
