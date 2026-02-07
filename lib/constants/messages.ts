@@ -66,6 +66,16 @@ export const ERROR_MESSAGES = {
     NOT_COMPLETED: 'Only completed lessons can be marked as paid.',
     CALCULATE_FAILED: 'Failed to calculate unpaid balance.',
   },
+  EXPENSE: {
+    REQUIRED_FIELDS: 'Date, amount, category, and description are required.',
+    INVALID_AMOUNT: 'Amount must be greater than 0.',
+    INVALID_MILES: 'Miles driven must be greater than 0.',
+    CREATE_FAILED: 'Failed to create expense.',
+    UPDATE_FAILED: 'Failed to update expense.',
+    DELETE_FAILED: 'Failed to delete expense.',
+    FETCH_FAILED: 'Failed to fetch expenses.',
+    NOT_FOUND: 'Expense not found.',
+  },
   GENERIC: {
     UNEXPECTED_ERROR: 'An unexpected error occurred. Please try again.',
   },
@@ -96,6 +106,12 @@ export const SUCCESS_MESSAGES = {
     MARKED_PAID: 'Lesson marked as paid.',
     BULK_PAID: (count: number) => `${count} lesson${count > 1 ? 's' : ''} marked as paid.`,
     NOTE_SAVED: 'Note saved successfully!',
+  },
+  EXPENSE: {
+    CREATED: 'Expense added successfully!',
+    UPDATED: 'Expense updated successfully!',
+    DELETED: 'Expense deleted successfully!',
+    MILEAGE_CREATED: 'Mileage entry added successfully!',
   },
 } as const;
 

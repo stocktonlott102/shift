@@ -113,25 +113,74 @@ The existing data model already captures `rate_at_booking` on lessons, `amount_o
 
 ---
 
-### 8. Business Expenses (Phase 2 - Future)
+### 8. Business Expense Tracking
 
 **User Story:** As a coach, I want to track business expenses so that I can deduct them during tax preparation and calculate my net profit.
 
 #### Acceptance Criteria
-1. WHEN the coach navigates to the Expenses tab THEN the system SHALL display a list of recorded expenses for the selected time period.
-2. WHEN the coach adds an expense THEN the system SHALL capture: date, category, description, and amount. Categories SHALL align with common Schedule C deductions for coaches:
-   - Equipment & Supplies (training gear, balls, mats, etc.)
-   - Professional Development (certifications, courses, workshops)
-   - Technology & Software (scheduling apps, video tools)
-   - Transportation (mileage, parking, tolls)
-   - Facility & Venue Rental (court fees, gym rental, studio space)
-   - Insurance (liability insurance)
-   - Marketing & Advertising (website, social media ads)
-   - Other
-3. WHEN the coach views the tax summary THEN the system SHALL include total expenses, a category-by-category breakdown, and net profit (gross income minus total expenses).
-4. WHEN the coach exports for tax preparer THEN the system SHALL include both income and expense data in the export.
+1. WHEN the Financials page loads THEN the system SHALL display an "Income" / "Expenses" tab toggle at the top of the page. The Income tab shows the existing income sections (Requirements 2-5). The Expenses tab shows expense management.
+2. WHEN the coach views the Expenses tab THEN the system SHALL display a list of recorded expenses for the selected time period, sorted by date descending.
+3. WHEN displaying each expense row THEN the system SHALL show: date, category (with color indicator), description, and amount. On mobile, expenses SHALL display as compact cards.
+4. WHEN the coach taps "+ Add Expense" THEN the system SHALL display a form capturing:
+   - **Date** (required, defaults to today)
+   - **Amount** (required, positive number, USD)
+   - **Category** (required, select from pre-defined list):
+     - Equipment & Supplies
+     - Professional Development
+     - Technology & Software
+     - Transportation
+     - Facility & Venue Rental
+     - Insurance
+     - Marketing & Advertising
+     - Other
+   - **Description** (required, free text — serves as the business purpose record for IRS compliance)
+   - **Receipt Reference** (optional, free text — e.g., "Amazon order #123", "Chase statement 1/15")
+   - **Recurring** (optional checkbox — marks the expense as a monthly recurring cost for reference only; does not auto-generate future entries)
+5. WHEN the coach taps on an existing expense THEN the system SHALL allow editing or deleting the expense.
+6. WHEN the coach changes the month or year selector THEN the system SHALL update the expense list to show only expenses within the selected time period.
+7. IF no expenses exist for the selected period THEN the system SHALL display an empty-state message encouraging the coach to add their first expense.
 
-> **Note:** This requirement is deferred to Phase 2. The initial implementation will focus on income reporting only, but the page layout and data model should be designed to accommodate expenses later.
+---
+
+### 9. Expense Category Breakdown
+
+**User Story:** As a coach, I want to see my expenses grouped by category so that I can understand where my money goes and identify deductions for Schedule C.
+
+#### Acceptance Criteria
+1. WHEN the coach views the Expenses tab THEN the system SHALL display a category breakdown card showing total spent per category for the selected year, sorted by amount descending.
+2. WHEN displaying each category THEN the system SHALL show: category name (with color indicator), number of expenses, and total amount.
+3. WHEN the coach changes the year THEN the system SHALL update the category breakdown accordingly.
+
+---
+
+### 10. Mileage Tracking
+
+**User Story:** As a coach who travels to clients, I want to log my business mileage so that I can claim the IRS standard mileage deduction on my taxes.
+
+#### Acceptance Criteria
+1. WHEN the coach taps "+ Add Mileage" on the Expenses tab THEN the system SHALL display a mileage entry form capturing:
+   - **Date** (required, defaults to today)
+   - **Miles Driven** (required, positive number)
+   - **Purpose / Destination** (required, free text — e.g., "Lesson at Smith residence", "Tournament at City Park")
+2. WHEN the coach submits a mileage entry THEN the system SHALL automatically calculate the deduction amount using the IRS standard mileage rate ($0.70/mile for 2026) and save it as an expense under the "Transportation" category.
+3. WHEN displaying a mileage-created expense in the expense list THEN the system SHALL show the miles driven and auto-calculated amount (e.g., "32 mi — $22.40").
+4. WHEN the coach views the Tax Summary THEN the system SHALL display a mileage summary showing: total miles driven for the year and total mileage deduction amount.
+
+---
+
+### 11. Updated Tax Summary with Expenses
+
+**User Story:** As a coach, I want my tax summary to include both income and expenses so that I can see my net profit for Schedule C filing.
+
+#### Acceptance Criteria
+1. WHEN the coach views the tax summary and expenses exist for the selected year THEN the system SHALL display:
+   - **Total Gross Income** (unchanged from Requirement 6)
+   - **Total Expenses:** Sum of all expenses for the selected year
+   - **Net Profit:** Gross income minus total expenses (Schedule C Line 31)
+   - **Expense Category Breakdown:** Totals per category aligned with Schedule C line items
+   - **Mileage Summary:** Total miles driven and deduction amount for the year
+2. WHEN the coach clicks "Export for Tax Preparer" THEN the system SHALL download a CSV containing both income rows AND expense rows. Expense rows SHALL include columns: Date, Category, Description, Amount, Receipt Reference. The CSV SHALL clearly separate the income and expense sections.
+3. IF no expenses exist THEN the tax summary SHALL show $0 for expenses and net profit SHALL equal gross income (existing behavior preserved).
 
 ---
 

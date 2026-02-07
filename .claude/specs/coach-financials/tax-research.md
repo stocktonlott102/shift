@@ -102,8 +102,22 @@ Coaches must pay quarterly estimated taxes if they expect to owe $1,000+ for the
 
 ## Record-Keeping Requirements (IRS)
 
+### Receipt Requirements — What the IRS Actually Requires
+
+The IRS requires "adequate records" to substantiate deductions, but **original receipts are not always mandatory:**
+
+- **Expenses under $75:** No receipt required (except lodging). A bank/credit card statement showing the charge **plus a written record of business purpose** is sufficient.
+- **Expenses $75 and over:** A receipt or invoice documenting the amount, date, vendor, and business purpose is expected.
+- **Mileage:** Receipts do not apply. A **mileage log** (date, destination, business purpose, miles driven) is required regardless of amount.
+- **Bank statements alone are NOT sufficient** — they show amount and vendor but do not prove business purpose. The coach must record *why* the expense was business-related.
+
+**Key takeaway for the app:** Coaches do not need to store receipt photos to be tax-compliant. A digital record of each expense with date, amount, category, description (business purpose), and an optional receipt reference number is sufficient documentation for IRS purposes. Receipt photo storage is a convenience feature, not a compliance requirement.
+
+**Supabase storage note:** The free tier provides 1 GB file storage (50 MB/file limit). At ~2-5 MB per receipt photo, this supports ~200-500 receipts before hitting the cap. Receipt photo upload is deferred to a future phase to avoid storage constraints and keep the feature simple.
+
 ### What to Keep
-- Receipts for all business expenses (digital storage is acceptable)
+- Digital record of each expense with date, amount, category, and business purpose
+- Receipts for expenses $75+ (digital storage is acceptable, physical copies not required)
 - Mileage logs with date, destination, purpose, miles driven
 - Bank/credit card statements (dedicated business account recommended)
 - Client payment records and invoices
@@ -146,8 +160,12 @@ Coaches must pay quarterly estimated taxes if they expect to owe $1,000+ for the
 ## Sources
 - IRS Publication 583: Starting a Business and Keeping Records
 - IRS Self-Employed Individuals Tax Center
+- IRS Schedule C Instructions (2025): https://www.irs.gov/instructions/i1040sc
+- Schedule C Deductions Complete List 2026 (SDO CPA): https://www.sdocpa.com/schedule-c-deductions/
 - TurboTax: Common Tax Deductions for Coaches and Personal Trainers
 - Keeper Tax: 22 Tax Write-Offs for Self-Employed Coaches
 - Keeper Tax: 27 Tax Write-Offs for Personal Trainers
 - NEXT Insurance: Personal Trainer Tax Deductions Guide
 - Kiplinger: Estimated Tax Payment Deadlines 2026
+- Supabase Storage Limits: https://supabase.com/docs/guides/storage/uploads/file-limits
+- Supabase Pricing Breakdown 2026: https://www.metacto.com/blogs/the-true-cost-of-supabase-a-comprehensive-guide-to-pricing-integration-and-maintenance
