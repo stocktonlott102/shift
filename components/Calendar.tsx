@@ -137,6 +137,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
   const dragGhostRef = useRef<{ top: number; dayIndex?: number } | null>(null);
   const wasTouchRef = useRef(false);
   const justDraggedRef = useRef(false);
+  const mouseDragRef = useRef<{ startX: number; startY: number; event: EventBox; activated: boolean } | null>(null);
 
   // Refs to access latest props/state from document-level handlers
   const viewRef = useRef(view);
@@ -282,6 +283,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
   );
 
   const handleMouseMove = useCallback((e: React.MouseEvent, dayIndex?: number) => {
+    if (isDraggingRef.current) return; // Suppress hover during drag
     const position = calculateSlotPosition(e.clientY, dayIndex);
     if (position) {
       setHoveredSlot({ top: position.top, dayIndex: position.dayIndex });
@@ -289,7 +291,118 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
   }, [calculateSlotPosition]);
 
   const handleMouseLeave = useCallback(() => {
+    if (isDraggingRef.current) return;
     setHoveredSlot(null);
+  }, []);
+
+  // --- Mouse drag handler (desktop: click+drag to move lessons) ---
+  const handleEventMouseDown = useCallback((e: React.MouseEvent, ev: EventBox) => {
+    if (e.button !== 0) return; // Only left click
+    mouseDragRef.current = { startX: e.clientX, startY: e.clientY, event: ev, activated: false };
+  }, []);
+
+  // Document-level mouse drag listeners
+  useEffect(() => {
+    const onDocMouseMove = (e: MouseEvent) => {
+      if (!mouseDragRef.current) return;
+
+      const { startX, startY, event: ev, activated } = mouseDragRef.current;
+
+      if (!activated) {
+        // Check if mouse moved enough to start dragging
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        if (Math.abs(dx) < MOVE_THRESHOLD && Math.abs(dy) < MOVE_THRESHOLD) return;
+
+        // Activate drag
+        mouseDragRef.current.activated = true;
+        isDraggingRef.current = true;
+        dragModeRef.current = 'move';
+        dragEventRef.current = ev;
+
+        if (containerRef.current) {
+          const rect = containerRef.current.getBoundingClientRect();
+          dragStartOffsetRef.current = startY - rect.top - ev.top;
+        }
+
+        setDragEvent(ev);
+        setIsDragging(true);
+        setHoveredSlot(null);
+      }
+
+      // Update ghost position
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const y = e.clientY - rect.top - dragStartOffsetRef.current;
+
+        const minutesFromStart = (y / HOUR_HEIGHT_PX) * 60;
+        const snapped = Math.round(minutesFromStart / SNAP_INTERVAL_MINUTES) * SNAP_INTERVAL_MINUTES;
+        const snappedTop = (snapped / 60) * HOUR_HEIGHT_PX;
+
+        let dayIndex: number | undefined;
+        if (viewRef.current === 'week') {
+          const colWidth = rect.width / 7;
+          const x = e.clientX - rect.left;
+          dayIndex = Math.max(0, Math.min(6, Math.floor(x / colWidth)));
+        }
+
+        const newPos = { top: Math.max(0, snappedTop), dayIndex };
+        dragGhostRef.current = newPos;
+        setDragGhostPosition(newPos);
+      }
+    };
+
+    const onDocMouseUp = () => {
+      if (!mouseDragRef.current) return;
+
+      if (mouseDragRef.current.activated && dragGhostRef.current) {
+        const ghostPos = dragGhostRef.current;
+        const ev = mouseDragRef.current.event;
+        const minutesFromGridStart = (ghostPos.top / HOUR_HEIGHT_PX) * 60;
+
+        let targetStart: Date;
+        if (viewRef.current === 'week' && ghostPos.dayIndex !== undefined) {
+          const targetDay = weekDaysRef.current[ghostPos.dayIndex];
+          targetStart = new Date(targetDay);
+          targetStart.setHours(5, 30, 0, 0);
+          targetStart.setMinutes(targetStart.getMinutes() + minutesFromGridStart);
+        } else {
+          targetStart = new Date(visibleStartRef.current.getTime() + minutesFromGridStart * 60 * 1000);
+        }
+
+        const originalDurationMs = new Date(ev.resource.end_time).getTime()
+          - new Date(ev.resource.start_time).getTime();
+        const newEnd = new Date(targetStart.getTime() + originalDurationMs);
+
+        onMoveEventRef.current?.({
+          id: ev.id,
+          resource: ev.resource,
+          newStart: targetStart,
+          newEnd,
+        });
+
+        justDraggedRef.current = true;
+        setTimeout(() => { justDraggedRef.current = false; }, 300);
+      }
+
+      // Reset
+      mouseDragRef.current = null;
+      isDraggingRef.current = false;
+      dragModeRef.current = null;
+      dragEventRef.current = null;
+      dragGhostRef.current = null;
+      setIsDragging(false);
+      setDragEvent(null);
+      setDragGhostPosition(null);
+    };
+
+    document.addEventListener('mousemove', onDocMouseMove);
+    document.addEventListener('mouseup', onDocMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', onDocMouseMove);
+      document.removeEventListener('mouseup', onDocMouseUp);
+    };
   }, []);
 
   // --- Touch handlers (mobile: long press to place/move) ---
@@ -768,6 +881,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
                               key={ev.id}
                               className={cls}
                               style={{ top: ev.top, height: ev.height, backgroundColor }}
+                              onMouseDown={(e) => handleEventMouseDown(e, ev)}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (!isDragging && !justDraggedRef.current) {
@@ -863,6 +977,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
                       key={ev.id}
                       className={cls}
                       style={{ top: ev.top, height: ev.height, backgroundColor }}
+                      onMouseDown={(e) => handleEventMouseDown(e, ev)}
                       onClick={(e) => {
                         e.stopPropagation();
                         if (!isDragging && !justDraggedRef.current) {
