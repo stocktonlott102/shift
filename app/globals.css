@@ -127,6 +127,9 @@
     width: 100%;
     background: #ffffff;
     border-radius: 0;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
   }
 
   .dark .scheduler-grid {
@@ -137,6 +140,8 @@
     position: relative;
     height: var(--scheduler-hour-height);
     border-top: var(--scheduler-hour-border);
+    user-select: none;
+    -webkit-user-select: none;
   }
 
   .time-label {
@@ -173,6 +178,10 @@
     display: flex;
     align-items: flex-start; /* top-align by default */
     justify-content: flex-start; /* left-align by default */
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
   }
 
   @media (min-width: 640px) {
@@ -207,6 +216,12 @@
     height: 2px;
     background: #ef4444;
     z-index: 40;
+  }
+
+  /* Prevent body scroll during lesson drag */
+  body.dragging-lesson {
+    overflow: hidden;
+    touch-action: none;
   }
 
   /* Dark mode - Tailwind class based */

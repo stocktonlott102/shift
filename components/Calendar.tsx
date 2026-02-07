@@ -9,6 +9,7 @@ interface CalendarProps {
   lessons: LessonWithClient[];
   onSelectSlot?: (slotInfo: { start: Date; end: Date }) => void;
   onSelectEvent?: (event: { id: string; resource: LessonWithClient }) => void;
+  onMoveEvent?: (event: { id: string; resource: LessonWithClient; newStart: Date; newEnd: Date }) => void;
   date?: Date;
 }
 
@@ -110,12 +111,25 @@ type EventBox = {
   resource: LessonWithClient;
 };
 
-export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = new Date() }: CalendarProps) {
+// Drag-to-move constants
+const LONG_PRESS_DURATION = 500; // ms to trigger long press
+const MOVE_THRESHOLD = 10; // px - if finger moves more than this before timer, cancel long press
+
+export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveEvent, date = new Date() }: CalendarProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [now, setNow] = useState(new Date());
   const [currentDate, setCurrentDate] = useState(date);
   const [view, setView] = useState<CalendarView>('day');
   const [hoveredSlot, setHoveredSlot] = useState<{ top: number; dayIndex?: number } | null>(null);
+
+  // Drag state for long-press-to-move
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragEvent, setDragEvent] = useState<EventBox | null>(null);
+  const [dragGhostPosition, setDragGhostPosition] = useState<{ top: number; dayIndex?: number } | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number; eventId: string } | null>(null);
+  const dragStartOffsetRef = useRef<number>(0);
+  const isDraggingRef = useRef(false);
 
   // Week view specific data
   const weekStart = useMemo(() => getWeekStart(currentDate), [currentDate]);
@@ -216,6 +230,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
 
   const handleGridClick = useCallback(
     (e: React.MouseEvent, dayIndex?: number) => {
+      if (isDragging) return; // Don't create slot during drag
       if (!containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
 
@@ -240,7 +255,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
       const slotEnd = new Date(slotStart.getTime() + DEFAULT_SLOT_DURATION_MINUTES * 60 * 1000);
       onSelectSlot?.({ start: slotStart, end: slotEnd });
     },
-    [onSelectSlot, visibleStart, view, weekDays]
+    [onSelectSlot, visibleStart, view, weekDays, isDragging]
   );
 
   const handleMouseMove = useCallback((e: React.MouseEvent, dayIndex?: number) => {
@@ -266,6 +281,139 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
 
   const handleTouchEnd = useCallback(() => {
     setHoveredSlot(null);
+  }, []);
+
+  // --- Long-press drag-to-move handlers for event elements ---
+
+  const handleEventTouchStart = useCallback((e: React.TouchEvent, ev: EventBox) => {
+    const touch = e.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY, eventId: ev.id };
+
+    longPressTimerRef.current = setTimeout(() => {
+      // Long press detected - enter drag mode
+      isDraggingRef.current = true;
+      setIsDragging(true);
+      setDragEvent(ev);
+
+      // Calculate offset: where within the event the user touched
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const touchYInGrid = touch.clientY - rect.top;
+        dragStartOffsetRef.current = touchYInGrid - ev.top;
+      }
+
+      setDragGhostPosition({ top: ev.top, dayIndex: undefined });
+
+      // Haptic feedback
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    }, LONG_PRESS_DURATION);
+  }, []);
+
+  const handleEventTouchMove = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+
+    if (!isDraggingRef.current && touchStartRef.current) {
+      // Check if finger moved too much before long press triggered
+      const dx = touch.clientX - touchStartRef.current.x;
+      const dy = touch.clientY - touchStartRef.current.y;
+      if (Math.abs(dx) > MOVE_THRESHOLD || Math.abs(dy) > MOVE_THRESHOLD) {
+        // Cancel long press - user is scrolling
+        if (longPressTimerRef.current) {
+          clearTimeout(longPressTimerRef.current);
+          longPressTimerRef.current = null;
+        }
+        touchStartRef.current = null;
+      }
+      return;
+    }
+
+    if (isDraggingRef.current && containerRef.current) {
+      e.preventDefault(); // Prevent scrolling while dragging
+      const rect = containerRef.current.getBoundingClientRect();
+      const y = touch.clientY - rect.top - dragStartOffsetRef.current;
+
+      // Snap to grid
+      const minutesFromStart = (y / HOUR_HEIGHT_PX) * 60;
+      const snapped = Math.round(minutesFromStart / SNAP_INTERVAL_MINUTES) * SNAP_INTERVAL_MINUTES;
+      const snappedTop = (snapped / 60) * HOUR_HEIGHT_PX;
+
+      // Determine which day column (for week view)
+      let dayIndex: number | undefined;
+      if (view === 'week') {
+        const gridWidth = rect.width;
+        const colWidth = gridWidth / 7;
+        const x = touch.clientX - rect.left;
+        dayIndex = Math.max(0, Math.min(6, Math.floor(x / colWidth)));
+      }
+
+      setDragGhostPosition({ top: Math.max(0, snappedTop), dayIndex });
+    }
+  }, [view]);
+
+  const handleEventTouchEnd = useCallback(() => {
+    // Clear long press timer
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+
+    if (isDraggingRef.current && dragEvent && dragGhostPosition !== null && containerRef.current) {
+      // Calculate new start time from ghost position
+      const ghostPos = dragGhostPosition!;
+      const minutesFromGridStart = (ghostPos.top / HOUR_HEIGHT_PX) * 60;
+
+      let newStart: Date;
+      if (view === 'week' && ghostPos.dayIndex !== undefined) {
+        const targetDay = weekDays[ghostPos.dayIndex];
+        newStart = new Date(targetDay);
+        newStart.setHours(5, 30, 0, 0);
+        newStart.setMinutes(newStart.getMinutes() + minutesFromGridStart);
+      } else {
+        newStart = new Date(visibleStart.getTime() + minutesFromGridStart * 60 * 1000);
+      }
+
+      // Preserve original duration
+      const originalDurationMs = new Date(dragEvent.resource.end_time).getTime() - new Date(dragEvent.resource.start_time).getTime();
+      const newEnd = new Date(newStart.getTime() + originalDurationMs);
+
+      // Fire callback
+      onMoveEvent?.({
+        id: dragEvent.id,
+        resource: dragEvent.resource,
+        newStart,
+        newEnd,
+      });
+    }
+
+    // Reset drag state
+    isDraggingRef.current = false;
+    setIsDragging(false);
+    setDragEvent(null);
+    setDragGhostPosition(null);
+    touchStartRef.current = null;
+  }, [dragEvent, dragGhostPosition, view, weekDays, visibleStart, onMoveEvent]);
+
+  // Toggle body scroll lock during drag
+  useEffect(() => {
+    if (isDragging) {
+      document.body.classList.add('dragging-lesson');
+    } else {
+      document.body.classList.remove('dragging-lesson');
+    }
+    return () => {
+      document.body.classList.remove('dragging-lesson');
+    };
+  }, [isDragging]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+      }
+    };
   }, []);
 
   const nowTop = (() => {
@@ -429,7 +577,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
             </div>
 
             {/* Calendar Grid (6 rows x 7 days = 42 cells) */}
-            <div className="grid grid-cols-7 gap-1 flex-1">
+            <div className="grid grid-cols-7 gap-1 flex-1 select-none">
               {monthGrid.map((day, idx) => {
                 const isToday = isSameDay(day, now);
                 const isCurrentMonth = day.getMonth() === currentDate.getMonth();
@@ -515,7 +663,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
                     return (
                       <div
                         key={dayIdx}
-                        className={`flex-1 relative border-l border-gray-200 dark:border-gray-700 ${
+                        className={`flex-1 relative border-l border-gray-200 dark:border-gray-700 select-none ${
                           isToday ? 'bg-indigo-50/30 dark:bg-indigo-900/10' : ''
                         }`}
                         onClick={(e) => handleGridClick(e, dayIdx)}
@@ -546,7 +694,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
 
                         {/* Events for this day */}
                         {dayEventsForCol.map((ev) => {
-                          const cls = `scheduler-event ${ev.height <= (HOUR_HEIGHT_PX * (20 / 60)) ? 'small' : ''}`;
+                          const cls = `scheduler-event ${ev.height <= (HOUR_HEIGHT_PX * (20 / 60)) ? 'small' : ''} ${isDragging && dragEvent?.id === ev.id ? 'opacity-40' : ''}`;
                           const backgroundColor = ev.resource.lesson_type?.color || '#3B82F6';
                           return (
                             <div
@@ -555,8 +703,13 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
                               style={{ top: ev.top, height: ev.height, backgroundColor }}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                onSelectEvent?.({ id: ev.id, resource: ev.resource });
+                                if (!isDragging) {
+                                  onSelectEvent?.({ id: ev.id, resource: ev.resource });
+                                }
                               }}
+                              onTouchStart={(e) => handleEventTouchStart(e, ev)}
+                              onTouchMove={handleEventTouchMove}
+                              onTouchEnd={handleEventTouchEnd}
                             >
                               <span className="flex items-center gap-1">
                                 {ev.resource.is_recurring && <span className="text-xs">↻</span>}
@@ -565,6 +718,21 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
                             </div>
                           );
                         })}
+
+                        {/* Drag ghost for this column */}
+                        {isDragging && dragEvent && dragGhostPosition && dragGhostPosition.dayIndex === dayIdx && (
+                          <div
+                            className="absolute left-1 right-1 rounded-md border-2 border-dashed border-indigo-500 bg-indigo-200/50 dark:bg-indigo-700/30 pointer-events-none z-50"
+                            style={{
+                              top: `${dragGhostPosition.top}px`,
+                              height: `${dragEvent.height}px`,
+                            }}
+                          >
+                            <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 px-2 py-1">
+                              {dragEvent.resource.title}
+                            </span>
+                          </div>
+                        )}
 
                         {/* Current time line for today */}
                         {isToday && nowTop !== null && (
@@ -624,7 +792,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
                 )}
 
                 {events.map((ev) => {
-                  const cls = `scheduler-event ${ev.height <= (HOUR_HEIGHT_PX * (20 / 60)) ? 'small' : ''}`;
+                  const cls = `scheduler-event ${ev.height <= (HOUR_HEIGHT_PX * (20 / 60)) ? 'small' : ''} ${isDragging && dragEvent?.id === ev.id ? 'opacity-40' : ''}`;
                   const backgroundColor = ev.resource.lesson_type?.color || '#3B82F6';
                   return (
                     <div
@@ -633,8 +801,13 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
                       style={{ top: ev.top, height: ev.height, backgroundColor }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        onSelectEvent?.({ id: ev.id, resource: ev.resource });
+                        if (!isDragging) {
+                          onSelectEvent?.({ id: ev.id, resource: ev.resource });
+                        }
                       }}
+                      onTouchStart={(e) => handleEventTouchStart(e, ev)}
+                      onTouchMove={handleEventTouchMove}
+                      onTouchEnd={handleEventTouchEnd}
                     >
                       <span className="flex items-center gap-1">
                         {ev.resource.is_recurring && <span className="text-xs">↻</span>}
@@ -643,6 +816,21 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, date = 
                     </div>
                   );
                 })}
+
+                {/* Drag ghost for day view */}
+                {isDragging && dragEvent && dragGhostPosition && dragGhostPosition.dayIndex === undefined && (
+                  <div
+                    className="absolute left-1 right-1 rounded-md border-2 border-dashed border-indigo-500 bg-indigo-200/50 dark:bg-indigo-700/30 pointer-events-none z-50"
+                    style={{
+                      top: `${dragGhostPosition.top}px`,
+                      height: `${dragEvent.height}px`,
+                    }}
+                  >
+                    <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 px-2 py-1">
+                      {dragEvent.resource.title}
+                    </span>
+                  </div>
+                )}
 
                 {nowTop !== null && <div className="current-time-line" style={{ top: nowTop }} />}
               </div>

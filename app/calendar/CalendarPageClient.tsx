@@ -7,7 +7,7 @@ import Calendar from '@/components/Calendar';
 import BookLessonForm from '@/components/BookLessonForm';
 import EditLessonForm from '@/components/EditLessonForm';
 import Navigation from '@/components/Navigation';
-import { getLessons } from '@/app/actions/lesson-actions';
+import { getLessons, updateLesson } from '@/app/actions/lesson-actions';
 import { getClients } from '@/app/actions/client-actions';
 import type { LessonWithClient } from '@/lib/types/lesson';
 import type { Client } from '@/lib/types/client';
@@ -114,6 +114,33 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
     setSelectedLesson(null);
   };
 
+  // Handle moving a lesson via long-press drag-and-drop
+  const handleMoveEvent = async (event: {
+    id: string;
+    resource: LessonWithClient;
+    newStart: Date;
+    newEnd: Date;
+  }) => {
+    try {
+      const result = await updateLesson(event.id, {
+        start_time: event.newStart.toISOString(),
+        end_time: event.newEnd.toISOString(),
+      });
+
+      if (result.success) {
+        const lessonsResult = await getLessons();
+        if (lessonsResult.success) {
+          setLessons(lessonsResult.data);
+        }
+        router.refresh();
+      } else {
+        console.error('Failed to move lesson:', result.error);
+      }
+    } catch (err) {
+      console.error('Error moving lesson:', err);
+    }
+  };
+
   // Loading state
   if (isLoading) {
     return (
@@ -196,12 +223,13 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
           lessons={lessons}
           onSelectSlot={handleSelectSlot}
           onSelectEvent={handleSelectEvent}
+          onMoveEvent={handleMoveEvent}
         />
       </div>
       {/* Booking Form Modal */}
       {showBookingForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="w-full max-w-2xl">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-4 overflow-y-auto">
+          <div className="w-full max-w-2xl my-auto">
             <BookLessonForm
               clients={clients}
               onSuccess={handleBookingSuccess}
@@ -215,8 +243,8 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
 
       {/* Edit Lesson Form Modal */}
       {showEditForm && selectedLesson && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="w-full max-w-2xl">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-4 overflow-y-auto">
+          <div className="w-full max-w-2xl my-auto">
             <EditLessonForm
               lesson={selectedLesson}
               clients={clients}
