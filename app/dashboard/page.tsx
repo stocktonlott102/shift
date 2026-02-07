@@ -5,8 +5,7 @@ import SubscribeButton from '@/components/SubscribeButton';
 import Navigation from '@/components/Navigation';
 import DashboardWrapper from '@/components/DashboardWrapper';
 import { checkSubscriptionStatus } from '@/app/actions/stripe-actions';
-import { getOutstandingLessonsCount, calculateUnpaidBalance } from '@/app/actions/lesson-history-actions';
-import { getClients } from '@/app/actions/client-actions';
+import { getOutstandingLessonsCount } from '@/app/actions/lesson-history-actions';
 
 /**
  * Protected Dashboard Page (Server Component)
@@ -43,20 +42,6 @@ export default async function DashboardPage() {
   // Fetch outstanding lessons count
   const outstandingLessonsResult = await getOutstandingLessonsCount();
   const outstandingCount = outstandingLessonsResult.success ? outstandingLessonsResult.data?.count || 0 : 0;
-
-  // Fetch clients to derive counts and outstanding payments
-  const clientsResult = await getClients();
-  const clients = clientsResult.success && clientsResult.data ? clientsResult.data : [];
-  const totalClients = clients.length;
-
-  // Calculate total outstanding payments across all clients
-  const outstandingPayments = await Promise.all(
-    clients.map(async (client) => {
-      const balanceResult = await calculateUnpaidBalance({ clientId: client.id });
-      return balanceResult.success && balanceResult.data ? balanceResult.data.balance : 0;
-    })
-  );
-  const totalOutstandingPayments = outstandingPayments.reduce((sum, val) => sum + (val || 0), 0);
 
   // Extract subscription data
   const currentStatus = subscriptionStatus.success ? subscriptionStatus.subscriptionStatus : 'trial';
@@ -168,7 +153,7 @@ export default async function DashboardPage() {
 
         {/* Dashboard Overview Cards */}
         <div className="flex justify-center mb-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-5xl">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-5xl">
             {/* Outstanding Lessons Card */}
             <Link
               href="/outstanding-lessons"
@@ -231,36 +216,31 @@ export default async function DashboardPage() {
                 Lesson Types
               </h3>
             </Link>
-          </div>
-        </div>
 
-        {/* Statistics */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-8">
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
-            Statistics
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="flex items-center justify-between p-5 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900/40">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Outstanding Payments</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  ${totalOutstandingPayments.toFixed(2)}
-                </p>
+            {/* Financials Card */}
+            <Link
+              href="/financials"
+              className="flex flex-col items-center text-center bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-200 dark:border-emerald-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-all duration-200 transform hover:scale-105 cursor-pointer"
+            >
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-900/40 mb-3 text-emerald-600 dark:text-emerald-400">
+                <svg
+                  className="w-7 h-7"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
               </div>
-              <svg
-                className="w-10 h-10 text-yellow-600 dark:text-yellow-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                Financials
+              </h3>
+            </Link>
           </div>
         </div>
 
