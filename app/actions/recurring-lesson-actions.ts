@@ -213,20 +213,79 @@ export async function updateFutureLessonsInSeries(input: unknown): Promise<Actio
     const parentId = lesson.recurrence_parent_id || lesson.id;
     const lessonStartTime = new Date(lesson.start_time);
 
-    // Update all future lessons in the series (including this one)
-    const { error: updateError } = await supabase
-      .from('lessons')
-      .update(updates)
-      .or(`id.eq.${parentId},recurrence_parent_id.eq.${parentId}`)
-      .gte('start_time', lessonStartTime.toISOString())
-      .eq('coach_id', user.id);
+    // Separate time-related fields from non-time fields
+    const { start_time: newStartTime, end_time: newEndTime, ...nonTimeUpdates } = updates;
+    const hasTimeChanges = newStartTime !== undefined || newEndTime !== undefined;
+    const hasNonTimeChanges = Object.keys(nonTimeUpdates).length > 0;
 
-    if (updateError) {
-      console.error('Error updating future lessons:', updateError);
-      return {
-        success: false,
-        error: 'Failed to update future lessons',
-      };
+    // Bulk-update non-time fields (title, description, location, status)
+    if (hasNonTimeChanges) {
+      const { error: bulkUpdateError } = await supabase
+        .from('lessons')
+        .update(nonTimeUpdates)
+        .or(`id.eq.${parentId},recurrence_parent_id.eq.${parentId}`)
+        .gte('start_time', lessonStartTime.toISOString())
+        .eq('coach_id', user.id);
+
+      if (bulkUpdateError) {
+        console.error('Error bulk updating future lessons:', bulkUpdateError);
+        return { success: false, error: 'Failed to update future lessons' };
+      }
+    }
+
+    // For time changes, calculate delta and apply per-lesson to preserve weekly cadence
+    if (hasTimeChanges) {
+      const originalStart = new Date(lesson.start_time);
+      const originalEnd = new Date(lesson.end_time);
+
+      const startDeltaMs = newStartTime
+        ? new Date(newStartTime).getTime() - originalStart.getTime()
+        : 0;
+      const endDeltaMs = newEndTime
+        ? new Date(newEndTime).getTime() - originalEnd.getTime()
+        : 0;
+
+      // Fetch all future lessons in the series
+      const { data: futureLessons, error: fetchError } = await supabase
+        .from('lessons')
+        .select('id, start_time, end_time')
+        .or(`id.eq.${parentId},recurrence_parent_id.eq.${parentId}`)
+        .gte('start_time', lessonStartTime.toISOString())
+        .eq('coach_id', user.id);
+
+      if (fetchError) {
+        console.error('Error fetching future lessons for time update:', fetchError);
+        return { success: false, error: 'Failed to fetch future lessons' };
+      }
+
+      // Apply the time delta to each lesson individually
+      const updatePromises = (futureLessons || []).map((futureLesson) => {
+        const updatedFields: Record<string, string> = {};
+
+        if (startDeltaMs !== 0) {
+          const shiftedStart = new Date(new Date(futureLesson.start_time).getTime() + startDeltaMs);
+          updatedFields.start_time = shiftedStart.toISOString();
+        }
+        if (endDeltaMs !== 0) {
+          const shiftedEnd = new Date(new Date(futureLesson.end_time).getTime() + endDeltaMs);
+          updatedFields.end_time = shiftedEnd.toISOString();
+        }
+
+        if (Object.keys(updatedFields).length === 0) return Promise.resolve({ error: null });
+
+        return supabase
+          .from('lessons')
+          .update(updatedFields)
+          .eq('id', futureLesson.id)
+          .eq('coach_id', user.id);
+      });
+
+      const results = await Promise.all(updatePromises);
+      const failedUpdate = results.find((r) => r.error);
+      if (failedUpdate?.error) {
+        console.error('Error updating individual lesson time:', failedUpdate.error);
+        return { success: false, error: 'Failed to update some lesson times' };
+      }
     }
 
     revalidatePath('/calendar');

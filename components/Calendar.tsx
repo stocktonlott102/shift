@@ -109,7 +109,71 @@ type EventBox = {
   height: number;
   status: string;
   resource: LessonWithClient;
+  column: number;
+  totalColumns: number;
 };
+
+/**
+ * Compute side-by-side layout for overlapping events.
+ * Groups overlapping events and assigns each a column index.
+ */
+function computeOverlapLayout(rawEvents: Omit<EventBox, 'column' | 'totalColumns'>[]): EventBox[] {
+  if (rawEvents.length === 0) return [];
+
+  const sorted = [...rawEvents].sort((a, b) => {
+    const diff = a.start.getTime() - b.start.getTime();
+    if (diff !== 0) return diff;
+    return (b.end.getTime() - b.start.getTime()) - (a.end.getTime() - a.start.getTime());
+  });
+
+  // Build overlap groups (events that transitively overlap)
+  const groups: (typeof sorted)[] = [];
+  let currentGroup = [sorted[0]];
+  let groupEnd = sorted[0].end.getTime();
+
+  for (let i = 1; i < sorted.length; i++) {
+    const ev = sorted[i];
+    if (ev.start.getTime() < groupEnd) {
+      currentGroup.push(ev);
+      groupEnd = Math.max(groupEnd, ev.end.getTime());
+    } else {
+      groups.push(currentGroup);
+      currentGroup = [ev];
+      groupEnd = ev.end.getTime();
+    }
+  }
+  groups.push(currentGroup);
+
+  // Greedy column assignment per group
+  const result: EventBox[] = [];
+  for (const group of groups) {
+    const columns: { end: number }[] = [];
+    const assignments = new Map<string, number>();
+
+    for (const ev of group) {
+      let placed = false;
+      for (let col = 0; col < columns.length; col++) {
+        if (ev.start.getTime() >= columns[col].end) {
+          columns[col].end = ev.end.getTime();
+          assignments.set(ev.id, col);
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) {
+        assignments.set(ev.id, columns.length);
+        columns.push({ end: ev.end.getTime() });
+      }
+    }
+
+    const totalColumns = columns.length;
+    for (const ev of group) {
+      result.push({ ...ev, column: assignments.get(ev.id) || 0, totalColumns });
+    }
+  }
+
+  return result;
+}
 
 // Drag-to-move constants
 const LONG_PRESS_DURATION = 500; // ms to trigger long press
@@ -192,7 +256,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
   const totalVisibleMinutes = useMemo(() => minutesBetween(visibleStart, visibleEnd), [visibleStart, visibleEnd]);
 
   const events: EventBox[] = useMemo(() => {
-    return lessons
+    const rawEvents = lessons
       .map((l) => {
         const s = new Date(l.start_time);
         const e = new Date(l.end_time);
@@ -218,9 +282,11 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
           height: Math.max(8, height),
           status: l.status,
           resource: l,
-        } as EventBox;
+        };
       })
-      .filter(Boolean) as EventBox[];
+      .filter(Boolean) as Omit<EventBox, 'column' | 'totalColumns'>[];
+
+    return computeOverlapLayout(rawEvents);
   }, [lessons, visibleStart, visibleEnd]);
 
   useEffect(() => {
@@ -619,7 +685,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
         return !(e <= dayStart || s >= dayEnd);
       });
 
-      return dayLessons.map((l) => {
+      const rawDayEvents = dayLessons.map((l) => {
         const s = new Date(l.start_time);
         const e = new Date(l.end_time);
 
@@ -641,8 +707,10 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
           height: Math.max(8, height),
           status: l.status,
           resource: l,
-        } as EventBox;
+        };
       });
+
+      return computeOverlapLayout(rawDayEvents);
     });
   }, [view, weekDays, lessons]);
 
@@ -876,11 +944,20 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
                         {dayEventsForCol.map((ev) => {
                           const cls = `scheduler-event ${ev.height <= (HOUR_HEIGHT_PX * (20 / 60)) ? 'small' : ''} ${isDragging && dragEvent?.id === ev.id ? 'opacity-40' : ''}`;
                           const backgroundColor = ev.resource.lesson_type?.color || '#3B82F6';
+                          const widthPercent = 100 / ev.totalColumns;
+                          const leftPercent = (ev.column / ev.totalColumns) * 100;
                           return (
                             <div
                               key={ev.id}
                               className={cls}
-                              style={{ top: ev.top, height: ev.height, backgroundColor }}
+                              style={{
+                                top: ev.top,
+                                height: ev.height,
+                                backgroundColor,
+                                left: ev.totalColumns === 1 ? '2px' : `calc(${leftPercent}% + 1px)`,
+                                right: ev.totalColumns === 1 ? '2px' : 'auto',
+                                width: ev.totalColumns === 1 ? undefined : `calc(${widthPercent}% - 2px)`,
+                              }}
                               onMouseDown={(e) => handleEventMouseDown(e, ev)}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -972,11 +1049,20 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
                 {events.map((ev) => {
                   const cls = `scheduler-event ${ev.height <= (HOUR_HEIGHT_PX * (20 / 60)) ? 'small' : ''} ${isDragging && dragEvent?.id === ev.id ? 'opacity-40' : ''}`;
                   const backgroundColor = ev.resource.lesson_type?.color || '#3B82F6';
+                  const widthPercent = 100 / ev.totalColumns;
+                  const leftPercent = (ev.column / ev.totalColumns) * 100;
                   return (
                     <div
                       key={ev.id}
                       className={cls}
-                      style={{ top: ev.top, height: ev.height, backgroundColor }}
+                      style={{
+                        top: ev.top,
+                        height: ev.height,
+                        backgroundColor,
+                        left: ev.totalColumns === 1 ? '2px' : `calc(${leftPercent}% + 1px)`,
+                        right: ev.totalColumns === 1 ? '2px' : 'auto',
+                        width: ev.totalColumns === 1 ? undefined : `calc(${widthPercent}% - 2px)`,
+                      }}
                       onMouseDown={(e) => handleEventMouseDown(e, ev)}
                       onClick={(e) => {
                         e.stopPropagation();

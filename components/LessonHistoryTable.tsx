@@ -13,6 +13,7 @@ interface LessonHistoryTableProps {
 }
 
 type PaymentStatusFilter = 'All' | 'Pending' | 'Paid' | 'Overdue';
+type TimeframeFilter = 'past' | 'upcoming' | 'all';
 type SortField = 'date' | 'status' | 'amount';
 type SortOrder = 'asc' | 'desc';
 
@@ -24,6 +25,7 @@ export default function LessonHistoryTable({
   onEditLesson,
 }: LessonHistoryTableProps) {
   const [paymentFilter, setPaymentFilter] = useState<PaymentStatusFilter>('All');
+  const [timeframeFilter, setTimeframeFilter] = useState<TimeframeFilter>('past');
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -32,13 +34,27 @@ export default function LessonHistoryTable({
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // Filter lessons based on timeframe
+  const timeframeFilteredLessons = useMemo(() => {
+    const now = new Date();
+    switch (timeframeFilter) {
+      case 'past':
+        return lessons.filter((l) => new Date(l.startTime) < now);
+      case 'upcoming':
+        return lessons.filter((l) => new Date(l.startTime) >= now);
+      case 'all':
+      default:
+        return lessons;
+    }
+  }, [lessons, timeframeFilter]);
+
   // Filter lessons based on payment status
   const filteredLessons = useMemo(() => {
     if (paymentFilter === 'All') {
-      return lessons;
+      return timeframeFilteredLessons;
     }
-    return lessons.filter((lesson) => lesson.paymentStatus === paymentFilter);
-  }, [lessons, paymentFilter]);
+    return timeframeFilteredLessons.filter((lesson) => lesson.paymentStatus === paymentFilter);
+  }, [timeframeFilteredLessons, paymentFilter]);
 
   // Sort filtered lessons
   const sortedLessons = useMemo(() => {
@@ -78,7 +94,7 @@ export default function LessonHistoryTable({
 
   // Count pending lessons for bulk action
   const pendingCount = useMemo(() => {
-    return lessons.filter((l) => l.paymentStatus === 'Pending').length;
+    return lessons.filter((l) => l.lessonStatus === 'Completed' && l.paymentStatus === 'Pending').length;
   }, [lessons]);
 
   // Handle marking single lesson as paid
@@ -242,29 +258,16 @@ export default function LessonHistoryTable({
               Lesson History
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              {lessons.length} total lesson{lessons.length !== 1 ? 's' : ''}
+              {sortedLessons.length} lesson{sortedLessons.length !== 1 ? 's' : ''} shown
             </p>
           </div>
           <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="text-sm text-gray-600 dark:text-gray-400">Outstanding Balance</p>
-              <p
-                className={`text-2xl font-bold ${
-                  unpaidBalance > 0
-                    ? 'text-yellow-600 dark:text-yellow-400'
-                    : 'text-green-600 dark:text-green-400'
-                }`}
-              >
-                {formatCurrency(unpaidBalance)}
-              </p>
-            </div>
-            {unpaidBalance > 0 && (
+            {pendingCount > 0 && (
               <button
                 onClick={() => setShowBulkConfirm(true)}
-                disabled={pendingCount === 0}
-                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold px-6 py-3 rounded-lg transition-colors"
+                className="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors"
               >
-                Mark All Paid
+                Mark All Paid ({pendingCount})
               </button>
             )}
           </div>
@@ -274,21 +277,39 @@ export default function LessonHistoryTable({
       {/* Filters and Sort Controls */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          {/* Payment Status Filter */}
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Filter:
-            </label>
-            <select
-              value={paymentFilter}
-              onChange={(e) => setPaymentFilter(e.target.value as PaymentStatusFilter)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-            >
-              <option value="All">All Lessons</option>
-              <option value="Pending">Pending</option>
-              <option value="Paid">Paid</option>
-              <option value="Overdue">Overdue</option>
-            </select>
+          <div className="flex flex-wrap items-center gap-4">
+            {/* Timeframe Filter */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Show:
+              </label>
+              <select
+                value={timeframeFilter}
+                onChange={(e) => setTimeframeFilter(e.target.value as TimeframeFilter)}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              >
+                <option value="past">Past Lessons</option>
+                <option value="upcoming">Upcoming</option>
+                <option value="all">All</option>
+              </select>
+            </div>
+
+            {/* Payment Status Filter */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Payment:
+              </label>
+              <select
+                value={paymentFilter}
+                onChange={(e) => setPaymentFilter(e.target.value as PaymentStatusFilter)}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              >
+                <option value="All">All</option>
+                <option value="Pending">Pending</option>
+                <option value="Paid">Paid</option>
+                <option value="Overdue">Overdue</option>
+              </select>
+            </div>
           </div>
 
           {/* Sort Controls */}
