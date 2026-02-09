@@ -36,7 +36,7 @@ export default function LessonTypeBreakdown({ data }: LessonTypeBreakdownProps) 
                   <th className="text-right py-2 px-2 font-medium text-neutral-500 dark:text-neutral-400">Lessons</th>
                   <th className="text-right py-2 px-2 font-medium text-neutral-500 dark:text-neutral-400">Hours</th>
                   <th className="text-right py-2 px-2 font-medium text-neutral-500 dark:text-neutral-400">Income</th>
-                  <th className="text-right py-2 pl-2 font-medium text-neutral-500 dark:text-neutral-400">Avg Rate</th>
+                  <th className="text-right py-2 pl-2 font-medium text-neutral-500 dark:text-neutral-400">Rate</th>
                 </tr>
               </thead>
               <tbody>
@@ -57,7 +57,7 @@ export default function LessonTypeBreakdown({ data }: LessonTypeBreakdownProps) 
                     <td className="text-right py-2.5 px-2 text-neutral-700 dark:text-neutral-300">{lt.lessonCount}</td>
                     <td className="text-right py-2.5 px-2 text-neutral-700 dark:text-neutral-300">{formatHours(lt.hoursCoached)}</td>
                     <td className="text-right py-2.5 px-2 text-green-600 dark:text-green-400 font-medium">${lt.totalPaid.toFixed(2)}</td>
-                    <td className="text-right py-2.5 pl-2 text-neutral-700 dark:text-neutral-300">${lt.averageRate.toFixed(2)}</td>
+                    <td className="text-right py-2.5 pl-2 text-neutral-700 dark:text-neutral-300">${lt.rate.toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -84,7 +84,7 @@ export default function LessonTypeBreakdown({ data }: LessonTypeBreakdownProps) 
                   <span className="text-green-600 dark:text-green-400 font-medium">${lt.totalPaid.toFixed(2)}</span>
                 </div>
                 <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">
-                  Avg: ${lt.averageRate.toFixed(2)}/lesson
+                  Rate: ${lt.rate.toFixed(2)}/hr
                 </p>
               </div>
             ))}

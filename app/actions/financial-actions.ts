@@ -76,7 +76,8 @@ export async function getFinancialSummary(year: number): Promise<{
         lesson_type:lesson_types (
           id,
           name,
-          color
+          color,
+          hourly_rate
         ),
         lesson_participants (
           client_id,
@@ -125,27 +126,10 @@ export async function getFinancialSummary(year: number): Promise<{
       }
     }
 
-    // Also fetch outstanding balance across ALL time (not year-scoped)
-    const { data: allOutstanding, error: outstandingError } = await supabase
-      .from('lesson_participants')
-      .select('amount_owed, lesson:lessons!inner(coach_id, status)')
-      .in('payment_status', ['Pending', 'Overdue']);
-
-    let outstandingBalance = 0;
-    if (!outstandingError && allOutstanding) {
-      for (const row of allOutstanding) {
-        const lesson = (row as any).lesson;
-        if (lesson && lesson.coach_id === user.id && lesson.status !== 'Cancelled') {
-          outstandingBalance += Number(row.amount_owed) || 0;
-        }
-      }
-    }
-
     // --- Aggregation ---
     const monthlyMap: MonthlyIncome[] = Array.from({ length: 12 }, (_, i) => ({
       month: i,
       totalPaid: 0,
-      totalOutstanding: 0,
       lessonCount: 0,
       hoursCoached: 0,
     }));
@@ -170,6 +154,7 @@ export async function getFinancialSummary(year: number): Promise<{
         id: string;
         name: string;
         color: string;
+        hourly_rate: number;
       } | null;
 
       totalLessons++;
@@ -187,7 +172,7 @@ export async function getFinancialSummary(year: number): Promise<{
           lessonCount: 0,
           hoursCoached: 0,
           totalPaid: 0,
-          averageRate: 0,
+          rate: lessonType ? Number(lessonType.hourly_rate) : 0,
         });
       }
       const ltEntry = lessonTypeMap.get(ltKey)!;
@@ -219,7 +204,6 @@ export async function getFinancialSummary(year: number): Promise<{
               lessonCount: 0,
               hoursCoached: 0,
               totalPaid: 0,
-              outstandingBalance: 0,
             });
           }
           const ce = clientMap.get(clientId)!;
@@ -232,9 +216,6 @@ export async function getFinancialSummary(year: number): Promise<{
             quarterlyMap[quarter] += amount;
             grossIncome += amount;
             ltEntry.totalPaid += amount;
-          } else {
-            ce.outstandingBalance += amount;
-            monthlyMap[month].totalOutstanding += amount;
           }
 
           // Lesson detail for CSV export
@@ -269,7 +250,6 @@ export async function getFinancialSummary(year: number): Promise<{
             lessonCount: 0,
             hoursCoached: 0,
             totalPaid: 0,
-            outstandingBalance: 0,
           });
         }
         const ce = clientMap.get(clientId)!;
@@ -282,9 +262,6 @@ export async function getFinancialSummary(year: number): Promise<{
           quarterlyMap[quarter] += amount;
           grossIncome += amount;
           ltEntry.totalPaid += amount;
-        } else {
-          ce.outstandingBalance += amount;
-          monthlyMap[month].totalOutstanding += amount;
         }
 
         lessonDetails.push({
@@ -296,13 +273,6 @@ export async function getFinancialSummary(year: number): Promise<{
           paymentStatus: isPaid ? 'Paid' : 'Pending',
         });
       }
-    }
-
-    // Calculate average rates for lesson types
-    for (const lt of lessonTypeMap.values()) {
-      lt.averageRate = lt.lessonCount > 0
-        ? Math.round((lt.totalPaid / lt.lessonCount) * 100) / 100
-        : 0;
     }
 
     // Build quarterly breakdown
@@ -337,7 +307,6 @@ export async function getFinancialSummary(year: number): Promise<{
         clientBreakdown,
         lessonTypeBreakdown,
         taxSummary,
-        outstandingBalance: Math.round(outstandingBalance * 100) / 100,
         lessonDetails,
       },
     };

@@ -38,8 +38,7 @@ export default function ClientBreakdown({ data, monthName }: ClientBreakdownProp
                   <th className="text-left py-2 pr-3 font-medium text-neutral-500 dark:text-neutral-400">Client</th>
                   <th className="text-right py-2 px-2 font-medium text-neutral-500 dark:text-neutral-400">Lessons</th>
                   <th className="text-right py-2 px-2 font-medium text-neutral-500 dark:text-neutral-400">Hours</th>
-                  <th className="text-right py-2 px-2 font-medium text-neutral-500 dark:text-neutral-400">Paid</th>
-                  <th className="text-right py-2 pl-2 font-medium text-neutral-500 dark:text-neutral-400">Owed</th>
+                  <th className="text-right py-2 pl-2 font-medium text-neutral-500 dark:text-neutral-400">Paid</th>
                 </tr>
               </thead>
               <tbody>
@@ -58,10 +57,7 @@ export default function ClientBreakdown({ data, monthName }: ClientBreakdownProp
                     </td>
                     <td className="text-right py-2.5 px-2 text-neutral-700 dark:text-neutral-300">{client.lessonCount}</td>
                     <td className="text-right py-2.5 px-2 text-neutral-700 dark:text-neutral-300">{formatHours(client.hoursCoached)}</td>
-                    <td className="text-right py-2.5 px-2 text-green-600 dark:text-green-400 font-medium">${client.totalPaid.toFixed(2)}</td>
-                    <td className="text-right py-2.5 pl-2 text-amber-600 dark:text-amber-400">
-                      {client.outstandingBalance > 0 ? `$${client.outstandingBalance.toFixed(2)}` : '—'}
-                    </td>
+                    <td className="text-right py-2.5 pl-2 text-green-600 dark:text-green-400 font-medium">${client.totalPaid.toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -82,11 +78,6 @@ export default function ClientBreakdown({ data, monthName }: ClientBreakdownProp
                   <span>{formatHours(client.hoursCoached)}</span>
                   <span className="text-green-600 dark:text-green-400 font-medium">${client.totalPaid.toFixed(2)}</span>
                 </div>
-                {client.outstandingBalance > 0 && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                    ${client.outstandingBalance.toFixed(2)} outstanding
-                  </p>
-                )}
               </Link>
             ))}
           </div>

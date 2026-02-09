@@ -321,8 +321,7 @@ export default function ClientDetailClient({ client, coachId }: ClientDetailClie
                     {client.first_name}
                     {client.last_name ? ` ${client.last_name}` : ''}
                   </span>
-                  ?
-                  This will archive the client and they will no longer appear in your active clients list.
+                  ? This will permanently delete this client and all associated data, including lesson history and financial records. This action cannot be undone.
                 </p>
                 {deleteError && (
                   <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg text-sm mb-4">

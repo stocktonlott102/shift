@@ -65,18 +65,16 @@ export default function FinancialsPageClient({
       return date.getMonth() === selectedMonth;
     });
 
-    const map = new Map<string, { clientName: string; lessonCount: number; hoursCoached: number; totalPaid: number; outstandingBalance: number }>();
+    const map = new Map<string, { clientName: string; lessonCount: number; hoursCoached: number; totalPaid: number }>();
     for (const d of monthDetails) {
       if (!map.has(d.clientName)) {
-        map.set(d.clientName, { clientName: d.clientName, lessonCount: 0, hoursCoached: 0, totalPaid: 0, outstandingBalance: 0 });
+        map.set(d.clientName, { clientName: d.clientName, lessonCount: 0, hoursCoached: 0, totalPaid: 0 });
       }
       const entry = map.get(d.clientName)!;
       entry.lessonCount++;
       entry.hoursCoached += d.durationHours;
       if (d.paymentStatus === 'Paid') {
         entry.totalPaid += d.amountPaid;
-      } else {
-        entry.outstandingBalance += d.amountPaid || 0;
       }
     }
 
@@ -288,17 +286,6 @@ export default function FinancialsPageClient({
                   ${(monthData?.totalPaid || 0).toFixed(2)}
                 </p>
                 <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">Paid</p>
-              </div>
-
-              {/* Outstanding Balance */}
-              <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-sm border border-neutral-200 dark:border-neutral-700 p-4">
-                <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">
-                  Outstanding
-                </p>
-                <p className={`text-2xl font-bold mt-1 ${(financialData?.outstandingBalance || 0) > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-neutral-900 dark:text-white'}`}>
-                  ${(financialData?.outstandingBalance || 0).toFixed(2)}
-                </p>
-                <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">All time</p>
               </div>
 
               {/* Lessons This Month */}

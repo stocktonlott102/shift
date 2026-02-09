@@ -11,14 +11,12 @@ export interface FinancialData {
   clientBreakdown: ClientIncome[];
   lessonTypeBreakdown: LessonTypeIncome[];
   taxSummary: TaxSummary;
-  outstandingBalance: number;
   lessonDetails: LessonExportRow[];
 }
 
 export interface MonthlyIncome {
   month: number;           // 0-11
   totalPaid: number;
-  totalOutstanding: number;
   lessonCount: number;
   hoursCoached: number;
 }
@@ -29,7 +27,6 @@ export interface ClientIncome {
   lessonCount: number;
   hoursCoached: number;
   totalPaid: number;
-  outstandingBalance: number;
 }
 
 export interface LessonTypeIncome {
@@ -39,7 +36,7 @@ export interface LessonTypeIncome {
   lessonCount: number;
   hoursCoached: number;
   totalPaid: number;
-  averageRate: number;
+  rate: number;
 }
 
 export interface TaxSummary {
