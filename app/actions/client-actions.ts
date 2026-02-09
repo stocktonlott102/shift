@@ -349,7 +349,61 @@ export async function deleteClient(clientId: string) {
       .eq('id', clientId)
       .single();
 
-    // Delete the client (cascade will handle related records)
+    // --- Clean up lessons before deleting client ---
+
+    // Step 1: Find all lessons this client participates in
+    const { data: participantRows } = await supabase
+      .from('lesson_participants')
+      .select('lesson_id')
+      .eq('client_id', clientId);
+
+    if (participantRows && participantRows.length > 0) {
+      const lessonIds = participantRows.map((r) => r.lesson_id);
+
+      // Step 2: Count participants per lesson
+      const { data: allParticipants } = await supabase
+        .from('lesson_participants')
+        .select('lesson_id, client_id')
+        .in('lesson_id', lessonIds);
+
+      const participantCounts = new Map<string, number>();
+      for (const p of allParticipants || []) {
+        participantCounts.set(p.lesson_id, (participantCounts.get(p.lesson_id) || 0) + 1);
+      }
+
+      const multiParticipantLessonIds = lessonIds.filter((id) => (participantCounts.get(id) || 0) > 1);
+      const singleParticipantLessonIds = lessonIds.filter((id) => (participantCounts.get(id) || 0) <= 1);
+
+      // Step 3: Multi-participant lessons — remove this client, keep the lesson
+      if (multiParticipantLessonIds.length > 0) {
+        // Remove participant record
+        await supabase
+          .from('lesson_participants')
+          .delete()
+          .eq('client_id', clientId)
+          .in('lesson_id', multiParticipantLessonIds);
+
+        // Prevent FK cascade from deleting these lessons
+        await supabase
+          .from('lessons')
+          .update({ client_id: null })
+          .eq('client_id', clientId)
+          .in('id', multiParticipantLessonIds);
+      }
+
+      // Step 4: Single-participant lessons with client_id = NULL — delete explicitly
+      if (singleParticipantLessonIds.length > 0) {
+        await supabase
+          .from('lessons')
+          .delete()
+          .is('client_id', null)
+          .in('id', singleParticipantLessonIds)
+          .eq('coach_id', user.id);
+      }
+      // Single-participant lessons with client_id = clientId are handled by FK cascade below
+    }
+
+    // Step 5: Delete the client (FK cascade handles remaining single-client lessons)
     const { error } = await supabase
       .from('clients')
       .delete()
@@ -376,6 +430,7 @@ export async function deleteClient(clientId: string) {
     // Revalidate relevant pages
     revalidatePath('/clients');
     revalidatePath('/dashboard');
+    revalidatePath('/calendar');
 
     return {
       success: true,
