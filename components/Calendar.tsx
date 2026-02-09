@@ -179,6 +179,11 @@ function computeOverlapLayout(rawEvents: Omit<EventBox, 'column' | 'totalColumns
 const LONG_PRESS_DURATION = 500; // ms to trigger long press
 const MOVE_THRESHOLD = 10; // px - if finger moves more than this before timer, cancel long press
 
+// Swipe navigation constants
+const SWIPE_MIN_DISTANCE = 50; // px - minimum horizontal distance for swipe
+const SWIPE_RATIO = 2; // horizontal must be Nx vertical distance
+const SWIPE_MAX_DURATION = 500; // ms - swipe must complete within this time
+
 export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveEvent, date = new Date() }: CalendarProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [now, setNow] = useState(new Date());
@@ -202,9 +207,11 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
   const wasTouchRef = useRef(false);
   const justDraggedRef = useRef(false);
   const mouseDragRef = useRef<{ startX: number; startY: number; event: EventBox; activated: boolean } | null>(null);
+  const swipeStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
 
   // Refs to access latest props/state from document-level handlers
   const viewRef = useRef(view);
+  const currentDateRef = useRef(currentDate);
   const weekDaysRef = useRef<Date[]>([]);
   const visibleStartRef = useRef<Date>(new Date());
   const onMoveEventRef = useRef(onMoveEvent);
@@ -300,6 +307,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
   useEffect(() => { visibleStartRef.current = visibleStart; }, [visibleStart]);
   useEffect(() => { onMoveEventRef.current = onMoveEvent; }, [onMoveEvent]);
   useEffect(() => { onSelectSlotRef.current = onSelectSlot; }, [onSelectSlot]);
+  useEffect(() => { currentDateRef.current = currentDate; }, [currentDate]);
 
   // Calculate slot position from mouse/touch event
   const calculateSlotPosition = useCallback((clientY: number, dayIndex?: number) => {
@@ -478,6 +486,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
     wasTouchRef.current = true;
     const touch = e.touches[0];
     touchStartRef.current = { x: touch.clientX, y: touch.clientY, dayIndex };
+    swipeStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
 
     longPressTimerRef.current = setTimeout(() => {
       // Long press on empty space - enter place mode
@@ -513,6 +522,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
     wasTouchRef.current = true;
     const touch = e.touches[0];
     touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+    swipeStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
 
     longPressTimerRef.current = setTimeout(() => {
       isDraggingRef.current = true;
@@ -558,6 +568,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
 
       // During drag: prevent scrolling and update ghost position
       if (isDraggingRef.current && containerRef.current) {
+        swipeStartRef.current = null; // No swipe during drag
         e.preventDefault();
         const rect = containerRef.current.getBoundingClientRect();
         const y = touch.clientY - rect.top - dragStartOffsetRef.current;
@@ -584,6 +595,43 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
       if (longPressTimerRef.current) {
         clearTimeout(longPressTimerRef.current);
         longPressTimerRef.current = null;
+      }
+
+      // Swipe navigation detection (only when NOT in drag mode)
+      if (!isDraggingRef.current && !justDraggedRef.current && swipeStartRef.current) {
+        const touch = e.changedTouches[0];
+        const dx = touch.clientX - swipeStartRef.current.x;
+        const dy = touch.clientY - swipeStartRef.current.y;
+        const absDx = Math.abs(dx);
+        const absDy = Math.abs(dy);
+        const elapsed = Date.now() - swipeStartRef.current.time;
+
+        if (
+          absDx >= SWIPE_MIN_DISTANCE &&
+          absDx >= absDy * SWIPE_RATIO &&
+          elapsed < SWIPE_MAX_DURATION
+        ) {
+          const cv = viewRef.current;
+          const cd = currentDateRef.current;
+          const newDate = new Date(cd);
+
+          if (dx < 0) {
+            // Swipe left -> next
+            if (cv === 'day') newDate.setDate(newDate.getDate() + 1);
+            else if (cv === 'week') newDate.setDate(newDate.getDate() + 7);
+            else if (cv === 'month') newDate.setMonth(newDate.getMonth() + 1);
+          } else {
+            // Swipe right -> previous
+            if (cv === 'day') newDate.setDate(newDate.getDate() - 1);
+            else if (cv === 'week') newDate.setDate(newDate.getDate() - 7);
+            else if (cv === 'month') newDate.setMonth(newDate.getMonth() - 1);
+          }
+
+          setCurrentDate(newDate);
+          swipeStartRef.current = null;
+          touchStartRef.current = null;
+          return;
+        }
       }
 
       if (isDraggingRef.current && dragGhostRef.current) {
@@ -628,6 +676,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
       dragEventRef.current = null;
       dragGhostRef.current = null;
       touchStartRef.current = null;
+      swipeStartRef.current = null;
       setIsDragging(false);
       setDragEvent(null);
       setDragGhostPosition(null);
@@ -815,7 +864,13 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {view === 'month' ? (
           // Month View
-          <div className="flex flex-col h-full overflow-auto p-4">
+          <div
+            className="flex flex-col h-full overflow-auto p-4"
+            onTouchStart={(e: React.TouchEvent) => {
+              const touch = e.touches[0];
+              swipeStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
+            }}
+          >
             {/* Day of Week Header */}
             <div className="grid grid-cols-7 gap-1 mb-2">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
