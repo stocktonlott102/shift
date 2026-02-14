@@ -88,6 +88,7 @@ export default function ClientForm({ coachId, client, onSuccess, onCancel }: Cli
 
       // Success!
       setSuccessMessage(isEditMode ? SUCCESS_MESSAGES.CLIENT.UPDATED : SUCCESS_MESSAGES.CLIENT.CREATED);
+      setIsLoading(false);
 
       if (!isEditMode) {
         // Reset form only in create mode

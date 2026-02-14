@@ -17,6 +17,7 @@ import ClientDetailClient from './ClientDetailClient';
  */
 
 export default async function ClientDetailPage({ params }: any) {
+  const { id } = await params;
   const supabase = await createClient();
 
   // Check if user is authenticated
@@ -31,7 +32,7 @@ export default async function ClientDetailPage({ params }: any) {
   }
 
   // Fetch client details
-  const result = await getClientById(params.id);
+  const result = await getClientById(id);
 
   // If client not found or error, show 404
   if (!result.success || !result.data) {
