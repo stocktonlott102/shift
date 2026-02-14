@@ -301,6 +301,11 @@ export async function updateClient(clientId: string, formData: unknown) {
       }
     );
 
+    // Revalidate relevant pages
+    revalidatePath('/clients');
+    revalidatePath(`/clients/${clientId}`);
+    revalidatePath('/dashboard');
+
     return {
       success: true,
       data,

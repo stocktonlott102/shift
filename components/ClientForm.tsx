@@ -30,8 +30,8 @@ export default function ClientForm({ coachId, client, onSuccess, onCancel }: Cli
     if (client) {
       setFirstName(client.first_name);
       setLastName(client.last_name);
-      setParentEmail(client.parent_email);
-      setParentPhone(client.parent_phone);
+      setParentEmail(client.parent_email || '');
+      setParentPhone(client.parent_phone || '');
       setNotes(client.notes || '');
     }
   }, [client]);
