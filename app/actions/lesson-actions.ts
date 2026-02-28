@@ -732,10 +732,10 @@ export async function updateLesson(lessonId: string, formData: unknown) {
 
     const validatedData = validationResult.data;
 
-    // Fetch old lesson data for audit log
+    // Fetch old lesson data for audit log and rate recalculation
     const { data: oldLesson } = await supabase
       .from('lessons')
-      .select('title')
+      .select('title, rate_at_booking, start_time, end_time')
       .eq('id', lessonId)
       .single();
 
@@ -753,6 +753,34 @@ export async function updateLesson(lessonId: string, formData: unknown) {
         success: false,
         error: `${ERROR_MESSAGES.LESSON.UPDATE_FAILED}: ${error.message}`,
       };
+    }
+
+    // If time changed, recalculate and update participant amounts
+    const hasTimeChange = validatedData.start_time !== undefined || validatedData.end_time !== undefined;
+    if (hasTimeChange && oldLesson) {
+      const newStart = validatedData.start_time ? new Date(validatedData.start_time) : new Date(oldLesson.start_time);
+      const newEnd = validatedData.end_time ? new Date(validatedData.end_time) : new Date(oldLesson.end_time);
+      const newDurationHours = (newEnd.getTime() - newStart.getTime()) / (1000 * 60 * 60);
+      const newTotalAmount = Math.round(newDurationHours * oldLesson.rate_at_booking * 100) / 100;
+
+      const { data: participants } = await supabase
+        .from('lesson_participants')
+        .select('id')
+        .eq('lesson_id', lessonId);
+
+      const participantCount = participants?.length || 1;
+      const newAmountOwed = Math.round((newTotalAmount / participantCount) * 100) / 100;
+
+      const { error: amountUpdateError } = await supabase
+        .from('lesson_participants')
+        .update({ amount_owed: newAmountOwed })
+        .eq('lesson_id', lessonId)
+        .neq('payment_status', 'Paid');
+
+      if (amountUpdateError) {
+        console.error('Error updating participant amounts after time change:', amountUpdateError);
+        // Non-fatal: lesson was updated successfully, log and continue
+      }
     }
 
     // Log lesson update (fire-and-forget)

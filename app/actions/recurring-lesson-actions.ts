@@ -286,6 +286,36 @@ export async function updateFutureLessonsInSeries(input: unknown): Promise<Actio
         console.error('Error updating individual lesson time:', failedUpdate.error);
         return { success: false, error: 'Failed to update some lesson times' };
       }
+
+      // Recalculate amount_owed for all future lesson participants based on new duration
+      const originalDurationMs = originalEnd.getTime() - originalStart.getTime();
+      const newDurationMs = originalDurationMs + (endDeltaMs - startDeltaMs);
+      const newDurationHours = newDurationMs / (1000 * 60 * 60);
+      const newTotalAmount = Math.round(newDurationHours * lesson.rate_at_booking * 100) / 100;
+
+      // Get participant count from the current lesson
+      const { data: currentParticipants } = await supabase
+        .from('lesson_participants')
+        .select('id')
+        .eq('lesson_id', lesson.id);
+
+      const participantCount = currentParticipants?.length || 1;
+      const newAmountOwed = Math.round((newTotalAmount / participantCount) * 100) / 100;
+
+      // Update all unpaid participants across all future lessons
+      const futureLessonIds = (futureLessons || []).map((l: any) => l.id);
+      if (futureLessonIds.length > 0) {
+        const { error: amountUpdateError } = await supabase
+          .from('lesson_participants')
+          .update({ amount_owed: newAmountOwed })
+          .in('lesson_id', futureLessonIds)
+          .neq('payment_status', 'Paid');
+
+        if (amountUpdateError) {
+          console.error('Error updating participant amounts after time change:', amountUpdateError);
+          // Non-fatal: times were updated successfully, log and continue
+        }
+      }
     }
 
     revalidatePath('/calendar');
