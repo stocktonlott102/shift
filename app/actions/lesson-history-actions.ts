@@ -1108,6 +1108,91 @@ export async function markParticipantPaid(input: unknown): Promise<LessonHistory
 }
 
 /**
+ * Get unpaid balances for multiple clients in a single batch.
+ * Replaces the N+1 loop in the clients list page:
+ *   Before: 1 getClients query + (2 queries × N clients)
+ *   After:  1 getClients query + 2 batch queries (constant)
+ *
+ * Algorithm:
+ *   1. Fetch all lesson_participants with payment_status='Pending' for the given client IDs.
+ *   2. Fetch all completed lessons (coach-owned) matching those lesson IDs.
+ *   3. Intersect and sum in JS — no migration required.
+ *
+ * Returns a Map<client_id, balance> so callers can do O(1) lookups.
+ */
+export async function getClientBalancesBatch(
+  clientIds: string[]
+): Promise<LessonHistoryActionResponse<Map<string, number>>> {
+  try {
+    if (clientIds.length === 0) {
+      return { success: true, data: new Map() };
+    }
+
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return { success: false, error: ERROR_MESSAGES.AUTH.NOT_LOGGED_IN };
+    }
+
+    // Query 1: all pending participant records for these clients
+    const { data: participants, error: pError } = await supabase
+      .from('lesson_participants')
+      .select('client_id, lesson_id, amount_owed')
+      .in('client_id', clientIds)
+      .eq('payment_status', 'Pending');
+
+    if (pError) {
+      console.error('Error fetching lesson_participants batch:', pError);
+      return { success: false, error: ERROR_MESSAGES.PAYMENT.CALCULATE_FAILED };
+    }
+
+    if (!participants || participants.length === 0) {
+      return { success: true, data: new Map(clientIds.map((id) => [id, 0])) };
+    }
+
+    // Query 2: verify coach ownership and Completed status for those lesson IDs
+    const lessonIds = [...new Set(participants.map((p) => p.lesson_id))];
+
+    const { data: completedLessons, error: lError } = await supabase
+      .from('lessons')
+      .select('id')
+      .in('id', lessonIds)
+      .eq('coach_id', user.id)
+      .eq('status', 'Completed');
+
+    if (lError) {
+      console.error('Error fetching completed lessons batch:', lError);
+      return { success: false, error: ERROR_MESSAGES.PAYMENT.CALCULATE_FAILED };
+    }
+
+    const completedIds = new Set((completedLessons || []).map((l) => l.id));
+
+    // Aggregate in JS
+    const balanceMap = new Map<string, number>(clientIds.map((id) => [id, 0]));
+    for (const p of participants) {
+      if (completedIds.has(p.lesson_id)) {
+        balanceMap.set(p.client_id, (balanceMap.get(p.client_id) ?? 0) + (p.amount_owed || 0));
+      }
+    }
+
+    // Round to 2 decimal places
+    for (const [id, bal] of balanceMap) {
+      balanceMap.set(id, Number(bal.toFixed(2)));
+    }
+
+    return { success: true, data: balanceMap };
+  } catch (error: any) {
+    console.error('Unexpected error in getClientBalancesBatch:', error);
+    return { success: false, error: ERROR_MESSAGES.GENERIC.UNEXPECTED_ERROR };
+  }
+}
+
+/**
  * Mark all participants in a lesson as paid
  * Updates all lesson_participants records to have amount_owed = 0
  * Used when confirming a completed multi-client lesson

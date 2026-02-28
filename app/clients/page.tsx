@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { getClients } from '@/app/actions/client-actions';
-import { calculateUnpaidBalance } from '@/app/actions/lesson-history-actions';
+import { getClientBalancesBatch } from '@/app/actions/lesson-history-actions';
 import ClientsPageClient from './ClientsPageClient';
 
 /**
@@ -33,14 +33,16 @@ export default async function ClientsPage() {
 
   const clients = result.success ? result.data : [];
 
-  // Fetch unpaid balances for all clients
-  const clientsWithBalances = await Promise.all(
-    clients.map(async (client) => {
-      const balanceResult = await calculateUnpaidBalance({ clientId: client.id });
-      const balance = balanceResult.success && balanceResult.data ? balanceResult.data.balance : 0;
-      return { ...client, unpaidBalance: balance };
-    })
-  );
+  // Fetch all unpaid balances in a single batch (2 queries regardless of client count)
+  // instead of the previous N+1 pattern (2 queries × number of clients).
+  const clientIds = clients.map((c) => c.id);
+  const balancesResult = await getClientBalancesBatch(clientIds);
+  const balanceMap = balancesResult.success && balancesResult.data ? balancesResult.data : new Map<string, number>();
+
+  const clientsWithBalances = clients.map((client) => ({
+    ...client,
+    unpaidBalance: balanceMap.get(client.id) ?? 0,
+  }));
 
   return <ClientsPageClient coachId={user.id} clientsWithBalances={clientsWithBalances} />;
 }
