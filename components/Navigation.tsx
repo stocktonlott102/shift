@@ -104,7 +104,7 @@ export default function Navigation() {
           <div className="flex items-center justify-between h-16">
             {/* Logo/Brand */}
             <div className="flex-shrink-0 flex items-center gap-2">
-              <h1 className="text-2xl font-bold text-primary-600 dark:text-primary-400">
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-secondary-purple via-secondary-fuchsia to-secondary-pink bg-clip-text text-transparent">
                 Shift
               </h1>
               <span className="px-2 py-0.5 text-xs font-semibold bg-gradient-to-r from-secondary-purple to-secondary-pink text-white rounded-md">
