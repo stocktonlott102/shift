@@ -4,17 +4,19 @@
       <stop offset="0%" stop-color="#312e81"/>
       <stop offset="100%" stop-color="#1e1b4b"/>
     </linearGradient>
+    <linearGradient id="letter" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#C026D3"/>
+      <stop offset="100%" stop-color="#EC4899"/>
+    </linearGradient>
   </defs>
-  <!-- Rounded square background -->
   <rect width="32" height="32" rx="7" fill="url(#bg)"/>
-  <!-- Bold "S" lettermark in brand indigo-400 -->
   <text
     x="16"
     y="23"
     font-family="system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif"
     font-size="22"
     font-weight="700"
-    fill="#818CF8"
+    fill="url(#letter)"
     text-anchor="middle"
   >S</text>
 </svg>
