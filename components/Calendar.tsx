@@ -2,14 +2,18 @@
 
 import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react';
 import type { LessonWithClient } from '@/lib/types/lesson';
+import type { CalendarBlock } from '@/lib/types/calendar-block';
 
 type CalendarView = 'day' | 'week' | 'month';
 
 interface CalendarProps {
   lessons: LessonWithClient[];
+  blocks?: CalendarBlock[];
   onSelectSlot?: (slotInfo: { start: Date; end: Date }) => void;
   onSelectEvent?: (event: { id: string; resource: LessonWithClient }) => void;
+  onSelectBlock?: (block: CalendarBlock) => void;
   onMoveEvent?: (event: { id: string; resource: LessonWithClient; newStart: Date; newEnd: Date }) => void;
+  onMoveBlock?: (block: CalendarBlock, newStart: Date, newEnd: Date) => void;
   date?: Date;
 }
 
@@ -108,7 +112,9 @@ type EventBox = {
   top: number;
   height: number;
   status: string;
-  resource: LessonWithClient;
+  type: 'lesson' | 'block';
+  resource?: LessonWithClient;
+  blockResource?: CalendarBlock;
   column: number;
   totalColumns: number;
 };
@@ -184,7 +190,7 @@ const SWIPE_MIN_DISTANCE = 50; // px - minimum horizontal distance for swipe
 const SWIPE_RATIO = 2; // horizontal must be Nx vertical distance
 const SWIPE_MAX_DURATION = 500; // ms - swipe must complete within this time
 
-export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveEvent, date = new Date() }: CalendarProps) {
+export default function Calendar({ lessons, blocks = [], onSelectSlot, onSelectEvent, onSelectBlock, onMoveEvent, onMoveBlock, date = new Date() }: CalendarProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [now, setNow] = useState(new Date());
   const [currentDate, setCurrentDate] = useState(date);
@@ -215,6 +221,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
   const weekDaysRef = useRef<Date[]>([]);
   const visibleStartRef = useRef<Date>(new Date());
   const onMoveEventRef = useRef(onMoveEvent);
+  const onMoveBlockRef = useRef(onMoveBlock);
   const onSelectSlotRef = useRef(onSelectSlot);
 
   // Week view specific data
@@ -263,7 +270,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
   const totalVisibleMinutes = useMemo(() => minutesBetween(visibleStart, visibleEnd), [visibleStart, visibleEnd]);
 
   const events: EventBox[] = useMemo(() => {
-    const rawEvents = lessons
+    const rawLessonEvents = lessons
       .map((l) => {
         const s = new Date(l.start_time);
         const e = new Date(l.end_time);
@@ -288,13 +295,44 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
           top,
           height: Math.max(8, height),
           status: l.status,
+          type: 'lesson' as const,
           resource: l,
         };
       })
       .filter(Boolean) as Omit<EventBox, 'column' | 'totalColumns'>[];
 
-    return computeOverlapLayout(rawEvents);
-  }, [lessons, visibleStart, visibleEnd]);
+    const rawBlockEvents = blocks
+      .map((b) => {
+        const s = new Date(b.start_time);
+        const e = new Date(b.end_time);
+
+        if (e <= visibleStart || s >= visibleEnd) return null;
+
+        const clippedStart = s < visibleStart ? visibleStart : s;
+        const clippedEnd = e > visibleEnd ? visibleEnd : e;
+
+        const minutesFromStart = minutesBetween(visibleStart, clippedStart);
+        const durationMinutes = Math.max(1, minutesBetween(clippedStart, clippedEnd));
+
+        const top = (minutesFromStart / 60) * HOUR_HEIGHT_PX;
+        const height = (durationMinutes / 60) * HOUR_HEIGHT_PX;
+
+        return {
+          id: b.id,
+          title: b.title,
+          start: clippedStart,
+          end: clippedEnd,
+          top,
+          height: Math.max(8, height),
+          status: '',
+          type: 'block' as const,
+          blockResource: b,
+        };
+      })
+      .filter(Boolean) as Omit<EventBox, 'column' | 'totalColumns'>[];
+
+    return computeOverlapLayout([...rawLessonEvents, ...rawBlockEvents]);
+  }, [lessons, blocks, visibleStart, visibleEnd]);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 30 * 1000);
@@ -306,6 +344,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
   useEffect(() => { weekDaysRef.current = weekDays; }, [weekDays]);
   useEffect(() => { visibleStartRef.current = visibleStart; }, [visibleStart]);
   useEffect(() => { onMoveEventRef.current = onMoveEvent; }, [onMoveEvent]);
+  useEffect(() => { onMoveBlockRef.current = onMoveBlock; }, [onMoveBlock]);
   useEffect(() => { onSelectSlotRef.current = onSelectSlot; }, [onSelectSlot]);
   useEffect(() => { currentDateRef.current = currentDate; }, [currentDate]);
 
@@ -444,16 +483,22 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
           targetStart = new Date(visibleStartRef.current.getTime() + minutesFromGridStart * 60 * 1000);
         }
 
-        const originalDurationMs = new Date(ev.resource.end_time).getTime()
-          - new Date(ev.resource.start_time).getTime();
-        const newEnd = new Date(targetStart.getTime() + originalDurationMs);
-
-        onMoveEventRef.current?.({
-          id: ev.id,
-          resource: ev.resource,
-          newStart: targetStart,
-          newEnd,
-        });
+        if (ev.type === 'block' && ev.blockResource) {
+          const originalDurationMs = new Date(ev.blockResource.end_time).getTime()
+            - new Date(ev.blockResource.start_time).getTime();
+          const newEnd = new Date(targetStart.getTime() + originalDurationMs);
+          onMoveBlockRef.current?.(ev.blockResource, targetStart, newEnd);
+        } else if (ev.resource) {
+          const originalDurationMs = new Date(ev.resource.end_time).getTime()
+            - new Date(ev.resource.start_time).getTime();
+          const newEnd = new Date(targetStart.getTime() + originalDurationMs);
+          onMoveEventRef.current?.({
+            id: ev.id,
+            resource: ev.resource,
+            newStart: targetStart,
+            newEnd,
+          });
+        }
 
         justDraggedRef.current = true;
         setTimeout(() => { justDraggedRef.current = false; }, 300);
@@ -651,16 +696,23 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
         }
 
         if (dragModeRef.current === 'move' && dragEventRef.current) {
-          const originalDurationMs = new Date(dragEventRef.current.resource.end_time).getTime()
-            - new Date(dragEventRef.current.resource.start_time).getTime();
-          const newEnd = new Date(targetStart.getTime() + originalDurationMs);
-
-          onMoveEventRef.current?.({
-            id: dragEventRef.current.id,
-            resource: dragEventRef.current.resource,
-            newStart: targetStart,
-            newEnd,
-          });
+          const ev = dragEventRef.current;
+          if (ev.type === 'block' && ev.blockResource) {
+            const originalDurationMs = new Date(ev.blockResource.end_time).getTime()
+              - new Date(ev.blockResource.start_time).getTime();
+            const newEnd = new Date(targetStart.getTime() + originalDurationMs);
+            onMoveBlockRef.current?.(ev.blockResource, targetStart, newEnd);
+          } else if (ev.resource) {
+            const originalDurationMs = new Date(ev.resource.end_time).getTime()
+              - new Date(ev.resource.start_time).getTime();
+            const newEnd = new Date(targetStart.getTime() + originalDurationMs);
+            onMoveEventRef.current?.({
+              id: ev.id,
+              resource: ev.resource,
+              newStart: targetStart,
+              newEnd,
+            });
+          }
         } else if (dragModeRef.current === 'place') {
           const slotEnd = new Date(targetStart.getTime() + DEFAULT_SLOT_DURATION_MINUTES * 60 * 1000);
           onSelectSlotRef.current?.({ start: targetStart, end: slotEnd });
@@ -721,7 +773,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
   // Week view: group events by day
   const weekEvents = useMemo(() => {
     if (view !== 'week') return [];
-    
+
     return weekDays.map((day) => {
       const dayStart = new Date(day);
       dayStart.setHours(5, 30, 0, 0);
@@ -734,7 +786,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
         return !(e <= dayStart || s >= dayEnd);
       });
 
-      const rawDayEvents = dayLessons.map((l) => {
+      const rawLessonEvents = dayLessons.map((l) => {
         const s = new Date(l.start_time);
         const e = new Date(l.end_time);
 
@@ -755,13 +807,46 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
           top,
           height: Math.max(8, height),
           status: l.status,
+          type: 'lesson' as const,
           resource: l,
         };
       });
 
-      return computeOverlapLayout(rawDayEvents);
+      const dayBlocks = blocks.filter((b) => {
+        const s = new Date(b.start_time);
+        const e = new Date(b.end_time);
+        return !(e <= dayStart || s >= dayEnd);
+      });
+
+      const rawBlockEvents = dayBlocks.map((b) => {
+        const s = new Date(b.start_time);
+        const e = new Date(b.end_time);
+
+        const clippedStart = s < dayStart ? dayStart : s;
+        const clippedEnd = e > dayEnd ? dayEnd : e;
+
+        const minutesFromStart = minutesBetween(dayStart, clippedStart);
+        const durationMinutes = Math.max(1, minutesBetween(clippedStart, clippedEnd));
+
+        const top = (minutesFromStart / 60) * HOUR_HEIGHT_PX;
+        const height = (durationMinutes / 60) * HOUR_HEIGHT_PX;
+
+        return {
+          id: b.id,
+          title: b.title,
+          start: clippedStart,
+          end: clippedEnd,
+          top,
+          height: Math.max(8, height),
+          status: '',
+          type: 'block' as const,
+          blockResource: b,
+        };
+      });
+
+      return computeOverlapLayout([...rawLessonEvents, ...rawBlockEvents]);
     });
-  }, [view, weekDays, lessons]);
+  }, [view, weekDays, lessons, blocks]);
 
   // Navigation handlers
   const handlePrevious = () => {
@@ -998,7 +1083,9 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
                         {/* Events for this day */}
                         {dayEventsForCol.map((ev) => {
                           const cls = `scheduler-event ${ev.height <= (HOUR_HEIGHT_PX * (20 / 60)) ? 'small' : ''} ${isDragging && dragEvent?.id === ev.id ? 'opacity-40' : ''}`;
-                          const backgroundColor = ev.resource.lesson_type?.color || '#3B82F6';
+                          const backgroundColor = ev.type === 'block'
+                            ? ev.blockResource!.color
+                            : ev.resource?.lesson_type?.color || '#3B82F6';
                           const widthPercent = 100 / ev.totalColumns;
                           const leftPercent = (ev.column / ev.totalColumns) * 100;
                           return (
@@ -1017,13 +1104,17 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (!isDragging && !justDraggedRef.current) {
-                                  onSelectEvent?.({ id: ev.id, resource: ev.resource });
+                                  if (ev.type === 'block' && ev.blockResource) {
+                                    onSelectBlock?.(ev.blockResource);
+                                  } else if (ev.resource) {
+                                    onSelectEvent?.({ id: ev.id, resource: ev.resource });
+                                  }
                                 }
                               }}
                               onTouchStart={(e) => handleEventTouchStart(e, ev)}
                             >
                               <span className="flex items-center gap-1">
-                                {ev.resource.is_recurring && <span className="text-xs">↻</span>}
+                                {ev.type === 'lesson' && ev.resource?.is_recurring && <span className="text-xs">↻</span>}
                                 <span>{ev.title}</span>
                               </span>
                             </div>
@@ -1040,7 +1131,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
                             }}
                           >
                             <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 px-2 py-1">
-                              {dragEvent ? dragEvent.resource.title : 'New Lesson'}
+                              {dragEvent ? dragEvent.title : 'New Event'}
                             </span>
                           </div>
                         )}
@@ -1103,7 +1194,9 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
 
                 {events.map((ev) => {
                   const cls = `scheduler-event ${ev.height <= (HOUR_HEIGHT_PX * (20 / 60)) ? 'small' : ''} ${isDragging && dragEvent?.id === ev.id ? 'opacity-40' : ''}`;
-                  const backgroundColor = ev.resource.lesson_type?.color || '#3B82F6';
+                  const backgroundColor = ev.type === 'block'
+                    ? ev.blockResource!.color
+                    : ev.resource?.lesson_type?.color || '#3B82F6';
                   const widthPercent = 100 / ev.totalColumns;
                   const leftPercent = (ev.column / ev.totalColumns) * 100;
                   return (
@@ -1122,13 +1215,17 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
                       onClick={(e) => {
                         e.stopPropagation();
                         if (!isDragging && !justDraggedRef.current) {
-                          onSelectEvent?.({ id: ev.id, resource: ev.resource });
+                          if (ev.type === 'block' && ev.blockResource) {
+                            onSelectBlock?.(ev.blockResource);
+                          } else if (ev.resource) {
+                            onSelectEvent?.({ id: ev.id, resource: ev.resource });
+                          }
                         }
                       }}
                       onTouchStart={(e) => handleEventTouchStart(e, ev)}
                     >
                       <span className="flex items-center gap-1">
-                        {ev.resource.is_recurring && <span className="text-xs">↻</span>}
+                        {ev.type === 'lesson' && ev.resource?.is_recurring && <span className="text-xs">↻</span>}
                         <span>{ev.title}</span>
                       </span>
                     </div>
@@ -1145,7 +1242,7 @@ export default function Calendar({ lessons, onSelectSlot, onSelectEvent, onMoveE
                     }}
                   >
                     <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 px-2 py-1">
-                      {dragEvent ? dragEvent.resource.title : 'New Lesson'}
+                      {dragEvent ? dragEvent.title : 'New Event'}
                     </span>
                   </div>
                 )}

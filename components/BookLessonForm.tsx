@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState, FormEvent } from 'react';
-import { createLesson, createLessonWithParticipants } from '@/app/actions/lesson-actions';
+import { createLessonWithParticipants } from '@/app/actions/lesson-actions';
+import { createCalendarBlock } from '@/app/actions/calendar-block-actions';
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/lib/constants/messages';
 import type { Client } from '@/lib/types/client';
 import ClientMultiPicker from './ClientMultiPicker';
@@ -9,6 +10,15 @@ import { createClient as createBrowserClient } from '@/lib/supabase/client';
 import type { LessonType } from '@/lib/types/lesson-type';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+
+const BLOCK_COLORS = [
+  { hex: '#6B7280', label: 'Gray' },
+  { hex: '#6366F1', label: 'Indigo' },
+  { hex: '#0EA5E9', label: 'Sky' },
+  { hex: '#10B981', label: 'Emerald' },
+  { hex: '#F59E0B', label: 'Amber' },
+  { hex: '#EF4444', label: 'Red' },
+];
 
 interface BookLessonFormProps {
   clients: Client[];
@@ -18,16 +28,6 @@ interface BookLessonFormProps {
   defaultEndTime?: Date;
 }
 
-// Helper: Format Date to datetime-local input format
-function formatDateTimeLocal(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
-}
-
 export default function BookLessonForm({
   clients,
   onSuccess,
@@ -35,34 +35,38 @@ export default function BookLessonForm({
   defaultStartTime,
   defaultEndTime,
 }: BookLessonFormProps) {
-  // Form state
-  const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
+  // Mode toggle
+  const [isBlock, setIsBlock] = useState(false);
+
+  // Shared form state
   const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [startTime, setStartTime] = useState<Date | null>(
-    defaultStartTime || null
-  );
-  const [endTime, setEndTime] = useState<Date | null>(
-    defaultEndTime || null
-  );
+  const [startTime, setStartTime] = useState<Date | null>(defaultStartTime || null);
+  const [endTime, setEndTime] = useState<Date | null>(defaultEndTime || null);
   const [durationPreset, setDurationPreset] = useState<15 | 20 | 30 | 60 | 'custom'>('custom');
-  const [location, setLocation] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Block-specific state
+  const [blockNotes, setBlockNotes] = useState('');
+  const [blockColor, setBlockColor] = useState('#6B7280');
+
+  // Lesson-specific state
+  const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
+  const [description, setDescription] = useState('');
+  const [location, setLocation] = useState('');
   const [lessonTypes, setLessonTypes] = useState<LessonType[]>([]);
   const [selectedLessonTypeId, setSelectedLessonTypeId] = useState<string>('');
   const [customRate, setCustomRate] = useState<string>('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isRecurring, setIsRecurring] = useState(false);
+  const [hasManuallyEditedTitle, setHasManuallyEditedTitle] = useState(false);
 
   useEffect(() => {
     const loadTypes = async () => {
       try {
         const supabase = createBrowserClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
         const { data, error } = await supabase
           .from('lesson_types')
@@ -81,7 +85,6 @@ export default function BookLessonForm({
   // Auto-calculate end time when start time or duration preset changes
   useEffect(() => {
     if (!startTime || durationPreset === 'custom') return;
-
     const end = new Date(startTime.getTime() + durationPreset * 60 * 1000);
     setEndTime(end);
   }, [startTime, durationPreset]);
@@ -92,99 +95,56 @@ export default function BookLessonForm({
   }, [startTime, endTime]);
 
   const effectiveRate = useMemo(() => {
-    if (selectedLessonTypeId === 'custom') {
-      return Number(customRate) || 0;
-    }
+    if (selectedLessonTypeId === 'custom') return Number(customRate) || 0;
     const lt = lessonTypes.find((t) => t.id === selectedLessonTypeId);
     return lt ? Number(lt.hourly_rate) : 0;
   }, [selectedLessonTypeId, customRate, lessonTypes]);
 
-  const totalAmount = useMemo(() => {
-    return Math.round(durationHours * effectiveRate * 100) / 100;
-  }, [durationHours, effectiveRate]);
-
+  const totalAmount = useMemo(() => Math.round(durationHours * effectiveRate * 100) / 100, [durationHours, effectiveRate]);
   const perClientAmount = useMemo(() => {
     const count = selectedClientIds.length || 1;
     return Math.round((totalAmount / count) * 100) / 100;
   }, [totalAmount, selectedClientIds.length]);
 
-  // Auto-generate title from lesson type template
+  // Auto-generate title from lesson type + client names
   const autoGeneratedTitle = useMemo(() => {
-    if (!selectedLessonTypeId || selectedLessonTypeId === 'custom') {
-      return '';
-    }
+    if (!selectedLessonTypeId || selectedLessonTypeId === 'custom') return '';
     const lessonType = lessonTypes.find((t) => t.id === selectedLessonTypeId);
-    if (!lessonType) {
-      return '';
-    }
-    if (selectedClientIds.length === 0) {
-      return '';
-    }
+    if (!lessonType || selectedClientIds.length === 0) return '';
     const selectedClients = clients.filter((c) => selectedClientIds.includes(c.id));
-
-    // Format client names based on count
     let clientNames: string;
     if (selectedClients.length === 1) {
       clientNames = selectedClients[0].first_name;
     } else if (selectedClients.length === 2) {
       clientNames = `${selectedClients[0].first_name} & ${selectedClients[1].first_name}`;
     } else {
-      // 3+ clients: use commas with final &
       const allButLast = selectedClients.slice(0, -1).map((c) => c.first_name).join(', ');
-      const last = selectedClients[selectedClients.length - 1].first_name;
-      clientNames = `${allButLast} & ${last}`;
+      clientNames = `${allButLast} & ${selectedClients[selectedClients.length - 1].first_name}`;
     }
-
-    // Sanitize lesson type name (strip any legacy {client_names})
     const sanitizedName = lessonType.name.replace(/\s*\{client_names\}\s*/gi, '').trim();
-    // Include lesson type name in the title - CLIENT NAMES FIRST
     return `${clientNames} - ${sanitizedName}`;
   }, [selectedLessonTypeId, selectedClientIds, lessonTypes, clients]);
 
-  // Track if the user has manually edited the title
-  const [hasManuallyEditedTitle, setHasManuallyEditedTitle] = useState(false);
-
-  // Auto-populate title field when lesson type and clients are selected
   useEffect(() => {
     if (autoGeneratedTitle && !hasManuallyEditedTitle) {
       setTitle(autoGeneratedTitle);
     }
   }, [autoGeneratedTitle, hasManuallyEditedTitle]);
 
-  // Use the title from state (which may be auto-populated or manually edited)
-  const finalTitle = title.trim();
-
+  // Reset mode-specific fields when switching modes
+  const handleModeSwitch = (toBlock: boolean) => {
+    setIsBlock(toBlock);
+    setError(null);
+    setSuccessMessage(null);
+    setTitle('');
+    setHasManuallyEditedTitle(false);
+  };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setSuccessMessage(null);
     setIsLoading(true);
-
-    // Validation
-    if (selectedClientIds.length === 0) {
-      setError(ERROR_MESSAGES.LESSON.CLIENT_REQUIRED);
-      setIsLoading(false);
-      return;
-    }
-
-    if (!selectedLessonTypeId) {
-      setError('Lesson type is required.');
-      setIsLoading(false);
-      return;
-    }
-
-    if (selectedLessonTypeId === 'custom' && (!customRate || Number(customRate) <= 0)) {
-      setError(ERROR_MESSAGES.LESSON.INVALID_RATE);
-      setIsLoading(false);
-      return;
-    }
-
-    if (!finalTitle.trim()) {
-      setError('Lesson title is required. Please open Additional Options to add a title.');
-      setIsLoading(false);
-      return;
-    }
 
     if (!startTime || !endTime) {
       setError(ERROR_MESSAGES.LESSON.REQUIRED_FIELDS);
@@ -205,37 +165,91 @@ export default function BookLessonForm({
       return;
     }
 
-    try {
-      // Always use multi-client booking with lesson participants
-      const rate = effectiveRate;
-      if (!rate || rate <= 0) {
-        setError(ERROR_MESSAGES.LESSON.INVALID_RATE);
+    // --- Event Block path ---
+    if (isBlock) {
+      if (!title.trim()) {
+        setError('Event title is required.');
         setIsLoading(false);
         return;
       }
 
-      // Build payload, only including optional fields if they have values
+      try {
+        const result = await createCalendarBlock({
+          title: title.trim(),
+          notes: blockNotes.trim() || undefined,
+          start_time: startTime.toISOString(),
+          end_time: endTime.toISOString(),
+          color: blockColor,
+        });
+
+        if (!result.success) {
+          setError(result.error || ERROR_MESSAGES.CALENDAR_BLOCK.CREATE_FAILED);
+          setIsLoading(false);
+          return;
+        }
+
+        setSuccessMessage(SUCCESS_MESSAGES.CALENDAR_BLOCK.CREATED);
+        // Reset
+        setTitle('');
+        setBlockNotes('');
+        setBlockColor('#6B7280');
+        setStartTime(null);
+        setEndTime(null);
+        setDurationPreset('custom');
+        setTimeout(() => onSuccess?.(), 1500);
+      } catch (err) {
+        console.error('Error creating block:', err);
+        setError(ERROR_MESSAGES.GENERIC.UNEXPECTED_ERROR);
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // --- Lesson path ---
+    if (selectedClientIds.length === 0) {
+      setError(ERROR_MESSAGES.LESSON.CLIENT_REQUIRED);
+      setIsLoading(false);
+      return;
+    }
+
+    if (!selectedLessonTypeId) {
+      setError('Lesson type is required.');
+      setIsLoading(false);
+      return;
+    }
+
+    if (selectedLessonTypeId === 'custom' && (!customRate || Number(customRate) <= 0)) {
+      setError(ERROR_MESSAGES.LESSON.INVALID_RATE);
+      setIsLoading(false);
+      return;
+    }
+
+    const finalTitle = title.trim();
+    if (!finalTitle) {
+      setError('Lesson title is required. Please open Additional Options to add a title.');
+      setIsLoading(false);
+      return;
+    }
+
+    const rate = effectiveRate;
+    if (!rate || rate <= 0) {
+      setError(ERROR_MESSAGES.LESSON.INVALID_RATE);
+      setIsLoading(false);
+      return;
+    }
+
+    try {
       const payload: any = {
-        title: finalTitle.trim(),
+        title: finalTitle,
         start_time: startTime.toISOString(),
         end_time: endTime.toISOString(),
         client_ids: selectedClientIds,
         lesson_type_id: selectedLessonTypeId && selectedLessonTypeId !== 'custom' ? selectedLessonTypeId : null,
       };
-
-      // Only include optional fields if they have values
-      if (description.trim()) {
-        payload.description = description.trim();
-      }
-      if (location.trim()) {
-        payload.location = location.trim();
-      }
-      if (selectedLessonTypeId === 'custom') {
-        payload.custom_hourly_rate = rate;
-      }
-      if (isRecurring) {
-        payload.is_recurring = true;
-      }
+      if (description.trim()) payload.description = description.trim();
+      if (location.trim()) payload.location = location.trim();
+      if (selectedLessonTypeId === 'custom') payload.custom_hourly_rate = rate;
+      if (isRecurring) payload.is_recurring = true;
 
       const result = await createLessonWithParticipants(payload);
 
@@ -246,8 +260,6 @@ export default function BookLessonForm({
       }
 
       setSuccessMessage(SUCCESS_MESSAGES.LESSON.CREATED);
-
-      // Reset form
       setSelectedClientIds([]);
       setTitle('');
       setDescription('');
@@ -270,89 +282,166 @@ export default function BookLessonForm({
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 sm:p-6 md:p-8 max-w-2xl mx-auto">
-      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-        Book New Lesson
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+        {isBlock ? 'Add Event Block' : 'Book New Lesson'}
       </h2>
 
+      {/* Mode Toggle */}
+      <div className="flex items-center gap-3 mb-6 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+        <button
+          type="button"
+          onClick={() => handleModeSwitch(false)}
+          className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+            !isBlock
+              ? 'bg-indigo-600 text-white shadow'
+              : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+          }`}
+          disabled={isLoading}
+        >
+          Lesson
+        </button>
+        <button
+          type="button"
+          onClick={() => handleModeSwitch(true)}
+          className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+            isBlock
+              ? 'bg-indigo-600 text-white shadow'
+              : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+          }`}
+          disabled={isLoading}
+        >
+          Event Block
+        </button>
+      </div>
+
       <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Error Message */}
         {error && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
             {error}
           </div>
         )}
-
-        {/* Success Message */}
         {successMessage && (
           <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 px-4 py-3 rounded-lg text-sm">
             {successMessage}
           </div>
         )}
 
-        {/* Client Selection (chips + searchable panel) */}
-        <ClientMultiPicker
-          clients={clients}
-          value={selectedClientIds}
-          onChange={setSelectedClientIds}
-          disabled={isLoading}
-        />
-
-        {/* Lesson Type */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Lesson Type
-          </label>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <select
-              value={selectedLessonTypeId}
-              onChange={(e) => setSelectedLessonTypeId(e.target.value)}
-              className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white bg-white appearance-none"
-              disabled={isLoading}
-              style={{
-                colorScheme: 'light',
-                backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3E%3Cpath stroke=\'%236b7280\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M6 8l4 4 4-4\'/%3E%3C/svg%3E")',
-                backgroundPosition: 'right 0.5rem center',
-                backgroundRepeat: 'no-repeat',
-                backgroundSize: '1.5em 1.5em',
-                paddingRight: '2.5rem'
-              }}
-            >
-              <option value="">Choose a type…</option>
-              {lessonTypes.map((lt) => {
-                const displayName = lt.name.replace(/\s*\{client_names\}\s*/gi, '').trim();
-                return (
-                  <option key={lt.id} value={lt.id}>
-                    {displayName} - ${Number(lt.hourly_rate)}/hr
-                  </option>
-                );
-              })}
-              <option value="custom">Custom</option>
-            </select>
-            {selectedLessonTypeId === 'custom' && (
+        {/* ===== EVENT BLOCK FIELDS ===== */}
+        {isBlock && (
+          <>
+            {/* Block Title */}
+            <div>
+              <label htmlFor="blockTitle" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Title <span className="text-red-500">*</span>
+              </label>
               <input
-                type="number"
-                min={1}
-                max={999}
-                step="0.01"
-                value={customRate}
-                onChange={(e) => setCustomRate(e.target.value)}
-                placeholder="Hourly rate"
-                className="sm:w-40 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                id="blockTitle"
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                placeholder="e.g. Prep time, Team meeting, Break..."
                 disabled={isLoading}
               />
-            )}
-          </div>
-          {selectedClientIds.length > 0 && durationHours > 0 && effectiveRate > 0 && (
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              {selectedClientIds.length > 1 ? (
-                <>Total: ${totalAmount} — Split: ${perClientAmount} per client</>
-              ) : (
-                <>Total: ${totalAmount}</>
-              )}
-            </p>
-          )}
-        </div>
+            </div>
 
+            {/* Block Color Palette */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                Block Color
+              </label>
+              <div className="grid grid-cols-6 gap-2 sm:gap-3">
+                {BLOCK_COLORS.map(({ hex, label }) => (
+                  <button
+                    key={hex}
+                    type="button"
+                    aria-label={label}
+                    title={label}
+                    onClick={() => setBlockColor(hex)}
+                    disabled={isLoading}
+                    className={`relative aspect-square rounded-full transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 ${
+                      blockColor === hex
+                        ? 'ring-[3px] ring-offset-2 ring-gray-700 dark:ring-white scale-110 shadow-md'
+                        : 'hover:scale-105 hover:shadow-sm opacity-85 hover:opacity-100'
+                    }`}
+                    style={{ backgroundColor: hex }}
+                  />
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ===== LESSON FIELDS ===== */}
+        {!isBlock && (
+          <>
+            {/* Client Selection */}
+            <ClientMultiPicker
+              clients={clients}
+              value={selectedClientIds}
+              onChange={setSelectedClientIds}
+              disabled={isLoading}
+            />
+
+            {/* Lesson Type */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Lesson Type
+              </label>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <select
+                  value={selectedLessonTypeId}
+                  onChange={(e) => setSelectedLessonTypeId(e.target.value)}
+                  className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white bg-white appearance-none"
+                  disabled={isLoading}
+                  style={{
+                    colorScheme: 'light',
+                    backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3E%3Cpath stroke=\'%236b7280\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M6 8l4 4 4-4\'/%3E%3C/svg%3E")',
+                    backgroundPosition: 'right 0.5rem center',
+                    backgroundRepeat: 'no-repeat',
+                    backgroundSize: '1.5em 1.5em',
+                    paddingRight: '2.5rem',
+                  }}
+                >
+                  <option value="">Choose a type…</option>
+                  {lessonTypes.map((lt) => {
+                    const displayName = lt.name.replace(/\s*\{client_names\}\s*/gi, '').trim();
+                    return (
+                      <option key={lt.id} value={lt.id}>
+                        {displayName} - ${Number(lt.hourly_rate)}/hr
+                      </option>
+                    );
+                  })}
+                  <option value="custom">Custom</option>
+                </select>
+                {selectedLessonTypeId === 'custom' && (
+                  <input
+                    type="number"
+                    min={1}
+                    max={999}
+                    step="0.01"
+                    value={customRate}
+                    onChange={(e) => setCustomRate(e.target.value)}
+                    placeholder="Hourly rate"
+                    className="sm:w-40 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    disabled={isLoading}
+                  />
+                )}
+              </div>
+              {selectedClientIds.length > 0 && durationHours > 0 && effectiveRate > 0 && (
+                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                  {selectedClientIds.length > 1 ? (
+                    <>Total: ${totalAmount} — Split: ${perClientAmount} per client</>
+                  ) : (
+                    <>Total: ${totalAmount}</>
+                  )}
+                </p>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* ===== SHARED TIME FIELDS ===== */}
         {/* Start Time */}
         <div>
           <label htmlFor="startTime" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -373,60 +462,27 @@ export default function BookLessonForm({
           />
         </div>
 
-        {/* Lesson Duration */}
+        {/* Duration */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Lesson Duration <span className="text-red-500">*</span>
+            {isBlock ? 'Duration' : 'Lesson Duration'} <span className="text-red-500">*</span>
           </label>
           <div className="grid grid-cols-5 gap-2 mb-3">
-            <button
-              type="button"
-              onClick={() => setDurationPreset(15)}
-              className={`py-3 px-2 text-sm font-medium rounded-lg transition-all ${
-                durationPreset === 15
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
-              disabled={isLoading}
-            >
-              15 min
-            </button>
-            <button
-              type="button"
-              onClick={() => setDurationPreset(20)}
-              className={`py-3 px-2 text-sm font-medium rounded-lg transition-all ${
-                durationPreset === 20
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
-              disabled={isLoading}
-            >
-              20 min
-            </button>
-            <button
-              type="button"
-              onClick={() => setDurationPreset(30)}
-              className={`py-3 px-2 text-sm font-medium rounded-lg transition-all ${
-                durationPreset === 30
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
-              disabled={isLoading}
-            >
-              30 min
-            </button>
-            <button
-              type="button"
-              onClick={() => setDurationPreset(60)}
-              className={`py-3 px-2 text-sm font-medium rounded-lg transition-all ${
-                durationPreset === 60
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
-              disabled={isLoading}
-            >
-              1 hour
-            </button>
+            {([15, 20, 30, 60] as const).map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => setDurationPreset(preset)}
+                className={`py-3 px-2 text-sm font-medium rounded-lg transition-all ${
+                  durationPreset === preset
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+                disabled={isLoading}
+              >
+                {preset < 60 ? `${preset} min` : '1 hour'}
+              </button>
+            ))}
             <button
               type="button"
               onClick={() => setDurationPreset('custom')}
@@ -464,120 +520,141 @@ export default function BookLessonForm({
             {durationPreset !== 'custom' && startTime && endTime && (
               <>End time: {endTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</>
             )}
-            {durationPreset === 'custom' && <>Minimum lesson duration: 5 minutes</>}
+            {durationPreset === 'custom' && <>Minimum duration: 5 minutes</>}
           </p>
         </div>
 
-        {/* Additional Options (collapsible) */}
-        <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-          <button
-            type="button"
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className="flex items-center gap-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
-          >
-            <svg
-              className={`w-4 h-4 transition-transform ${showAdvanced ? 'rotate-90' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+        {/* Block notes (always visible in block mode) */}
+        {isBlock && (
+          <div>
+            <label htmlFor="blockNotes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Notes
+            </label>
+            <textarea
+              id="blockNotes"
+              rows={3}
+              value={blockNotes}
+              onChange={(e) => setBlockNotes(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white resize-none"
+              placeholder="Optional notes..."
+              disabled={isLoading}
+            />
+          </div>
+        )}
+
+        {/* Lesson Additional Options (collapsible) */}
+        {!isBlock && (
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex items-center gap-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-            Additional Options
-          </button>
+              <svg
+                className={`w-4 h-4 transition-transform ${showAdvanced ? 'rotate-90' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+              Additional Options
+            </button>
 
-          {showAdvanced && (
-            <div className="mt-4 space-y-6 pl-6 border-l-2 border-indigo-200 dark:border-indigo-800">
-              {/* Lesson Title */}
-              <div>
-                <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Lesson Title
-                </label>
-                <input
-                  id="title"
-                  type="text"
-                  value={title}
-                  onChange={(e) => {
-                    setTitle(e.target.value);
-                    setHasManuallyEditedTitle(true);
-                  }}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  placeholder="Auto-generates based on lesson type and clients"
-                  disabled={isLoading}
-                />
-              </div>
-
-              {/* Location */}
-              <div>
-                <label htmlFor="location" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Location
-                </label>
-                <input
-                  id="location"
-                  type="text"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  disabled={isLoading}
-                />
-              </div>
-
-              {/* Description */}
-              <div>
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Notes/Description
-                </label>
-                <textarea
-                  id="description"
-                  rows={3}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white resize-none"
-                  disabled={isLoading}
-                />
-              </div>
-
-              {/* Recurring Lesson */}
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                <label className="flex items-start gap-3 cursor-pointer">
+            {showAdvanced && (
+              <div className="mt-4 space-y-6 pl-6 border-l-2 border-indigo-200 dark:border-indigo-800">
+                {/* Lesson Title */}
+                <div>
+                  <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Lesson Title
+                  </label>
                   <input
-                    type="checkbox"
-                    checked={isRecurring}
-                    onChange={(e) => setIsRecurring(e.target.checked)}
+                    id="title"
+                    type="text"
+                    value={title}
+                    onChange={(e) => {
+                      setTitle(e.target.value);
+                      setHasManuallyEditedTitle(true);
+                    }}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    placeholder="Auto-generates based on lesson type and clients"
                     disabled={isLoading}
-                    className="mt-1 w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
-                  <div className="flex-1">
-                    <span className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Make this a recurring lesson
-                    </span>
-                    <span className="block text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      Creates weekly lessons for 1 year (52 total lessons){startTime && ` through ${new Date(startTime.getTime() + 365 * 24 * 60 * 60 * 1000).toLocaleDateString()}`}
-                    </span>
-                  </div>
-                </label>
+                </div>
+
+                {/* Location */}
+                <div>
+                  <label htmlFor="location" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Location
+                  </label>
+                  <input
+                    id="location"
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Notes/Description
+                  </label>
+                  <textarea
+                    id="description"
+                    rows={3}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white resize-none"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                {/* Recurring Lesson */}
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isRecurring}
+                      onChange={(e) => setIsRecurring(e.target.checked)}
+                      disabled={isLoading}
+                      className="mt-1 w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    <div className="flex-1">
+                      <span className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Make this a recurring lesson
+                      </span>
+                      <span className="block text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Creates weekly lessons for 1 year (52 total lessons)
+                        {startTime && ` through ${new Date(startTime.getTime() + 365 * 24 * 60 * 60 * 1000).toLocaleDateString()}`}
+                      </span>
+                    </div>
+                  </label>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-3 pt-4">
           <button
             type="submit"
-            disabled={isLoading || clients.length === 0}
+            disabled={isLoading || (!isBlock && clients.length === 0)}
             className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 disabled:transform-none shadow-lg hover:shadow-xl disabled:cursor-not-allowed"
           >
             {isLoading ? (
               <span className="flex items-center justify-center">
                 <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                Booking...
+                {isBlock ? 'Creating...' : 'Booking...'}
               </span>
             ) : (
-              'Book Lesson'
+              isBlock ? 'Create Event Block' : 'Book Lesson'
             )}
           </button>
 

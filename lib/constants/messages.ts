@@ -76,6 +76,13 @@ export const ERROR_MESSAGES = {
     FETCH_FAILED: 'Failed to fetch expenses.',
     NOT_FOUND: 'Expense not found.',
   },
+  CALENDAR_BLOCK: {
+    CREATE_FAILED: 'Failed to create calendar event.',
+    UPDATE_FAILED: 'Failed to update calendar event.',
+    DELETE_FAILED: 'Failed to delete calendar event.',
+    FETCH_FAILED: 'Failed to fetch calendar events.',
+    NOT_FOUND: 'Calendar event not found.',
+  },
   GENERIC: {
     UNEXPECTED_ERROR: 'An unexpected error occurred. Please try again.',
   },
@@ -112,6 +119,11 @@ export const SUCCESS_MESSAGES = {
     UPDATED: 'Expense updated successfully!',
     DELETED: 'Expense deleted successfully!',
     MILEAGE_CREATED: 'Mileage entry added successfully!',
+  },
+  CALENDAR_BLOCK: {
+    CREATED: 'Personal event created!',
+    UPDATED: 'Event updated successfully!',
+    DELETED: 'Event deleted successfully!',
   },
 } as const;
 

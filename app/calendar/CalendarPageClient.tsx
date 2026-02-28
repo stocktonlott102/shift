@@ -6,11 +6,14 @@ import Link from 'next/link';
 import Calendar from '@/components/Calendar';
 import BookLessonForm from '@/components/BookLessonForm';
 import EditLessonForm from '@/components/EditLessonForm';
+import EditBlockForm from '@/components/EditBlockForm';
 import Navigation from '@/components/Navigation';
 import { getLessons, updateLesson } from '@/app/actions/lesson-actions';
 import { getClients } from '@/app/actions/client-actions';
+import { getCalendarBlocks, updateCalendarBlock } from '@/app/actions/calendar-block-actions';
 import type { LessonWithClient } from '@/lib/types/lesson';
 import type { Client } from '@/lib/types/client';
+import type { CalendarBlock } from '@/lib/types/calendar-block';
 
 interface CalendarPageClientProps {
   coachId: string;
@@ -20,14 +23,17 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
   const router = useRouter();
   const [lessons, setLessons] = useState<LessonWithClient[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [blocks, setBlocks] = useState<CalendarBlock[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Modal state
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
+  const [showEditBlockForm, setShowEditBlockForm] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<{ start: Date; end: Date } | null>(null);
   const [selectedLesson, setSelectedLesson] = useState<LessonWithClient | null>(null);
+  const [selectedBlock, setSelectedBlock] = useState<CalendarBlock | null>(null);
 
   // Fetch data on mount
   useEffect(() => {
@@ -36,9 +42,10 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
       setError(null);
 
       try {
-        const [lessonsResult, clientsResult] = await Promise.all([
+        const [lessonsResult, clientsResult, blocksResult] = await Promise.all([
           getLessons(),
           getClients(),
+          getCalendarBlocks(),
         ]);
 
         if (!lessonsResult.success) {
@@ -53,6 +60,7 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
 
         setLessons(lessonsResult.data);
         setClients(clientsResult.data);
+        setBlocks(blocksResult.data || []);
       } catch (err) {
         console.error('Error fetching data:', err);
         setError('An unexpected error occurred');
@@ -74,19 +82,6 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
   const handleSelectEvent = (event: { id: string; resource: LessonWithClient }) => {
     setSelectedLesson(event.resource);
     setShowEditForm(true);
-  };
-
-  // Handle successful lesson booking
-  const handleBookingSuccess = async () => {
-    setShowBookingForm(false);
-    setSelectedSlot(null);
-
-    // Re-fetch lessons
-    const result = await getLessons();
-    if (result.success) {
-      setLessons(result.data);
-    }
-    router.refresh();
   };
 
   // Handle cancel booking
@@ -139,6 +134,57 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
     } catch (err) {
       console.error('Error moving lesson:', err);
     }
+  };
+
+  // Handle selecting a block on the calendar
+  const handleSelectBlock = (block: CalendarBlock) => {
+    setSelectedBlock(block);
+    setShowEditBlockForm(true);
+  };
+
+  // Handle moving a block via drag-and-drop
+  const handleMoveBlock = async (block: CalendarBlock, newStart: Date, newEnd: Date) => {
+    try {
+      const result = await updateCalendarBlock(block.id, {
+        start_time: newStart.toISOString(),
+        end_time: newEnd.toISOString(),
+      });
+
+      if (result.success) {
+        const blocksResult = await getCalendarBlocks();
+        setBlocks(blocksResult.data || []);
+        router.refresh();
+      } else {
+        console.error('Failed to move block:', result.error);
+      }
+    } catch (err) {
+      console.error('Error moving block:', err);
+    }
+  };
+
+  // Handle successful block edit or creation
+  const handleBlockSuccess = async () => {
+    setShowEditBlockForm(false);
+    setSelectedBlock(null);
+    const blocksResult = await getCalendarBlocks();
+    setBlocks(blocksResult.data || []);
+    router.refresh();
+  };
+
+  // Handle cancel block edit
+  const handleCancelBlock = () => {
+    setShowEditBlockForm(false);
+    setSelectedBlock(null);
+  };
+
+  // Handle booking success — re-fetch both lessons and blocks (block creation also uses this)
+  const handleBookingSuccessWithBlocks = async () => {
+    setShowBookingForm(false);
+    setSelectedSlot(null);
+    const [lessonsResult, blocksResult] = await Promise.all([getLessons(), getCalendarBlocks()]);
+    if (lessonsResult.success) setLessons(lessonsResult.data);
+    setBlocks(blocksResult.data || []);
+    router.refresh();
   };
 
   // Loading state
@@ -221,9 +267,12 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
       <div className="flex-1 overflow-hidden pb-20 md:pb-0">
         <Calendar
           lessons={lessons}
+          blocks={blocks}
           onSelectSlot={handleSelectSlot}
           onSelectEvent={handleSelectEvent}
+          onSelectBlock={handleSelectBlock}
           onMoveEvent={handleMoveEvent}
+          onMoveBlock={handleMoveBlock}
         />
       </div>
       {/* Booking Form Modal */}
@@ -232,7 +281,7 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
           <div className="w-full max-w-2xl my-auto">
             <BookLessonForm
               clients={clients}
-              onSuccess={handleBookingSuccess}
+              onSuccess={handleBookingSuccessWithBlocks}
               onCancel={handleCancelBooking}
               defaultStartTime={selectedSlot?.start}
               defaultEndTime={selectedSlot?.end}
@@ -250,6 +299,19 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
               clients={clients}
               onSuccess={handleEditSuccess}
               onCancel={handleCancelEdit}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Edit Block Form Modal */}
+      {showEditBlockForm && selectedBlock && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-4 overflow-y-auto">
+          <div className="w-full max-w-2xl my-auto">
+            <EditBlockForm
+              block={selectedBlock}
+              onSuccess={handleBlockSuccess}
+              onCancel={handleCancelBlock}
             />
           </div>
         </div>
