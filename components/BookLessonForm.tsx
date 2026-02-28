@@ -340,7 +340,7 @@ export default function BookLessonForm({
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                placeholder="e.g. Prep time, Team meeting, Break..."
+                placeholder="Add a title..."
                 disabled={isLoading}
               />
             </div>

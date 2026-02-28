@@ -77,9 +77,12 @@ export async function createCalendarBlock(input: unknown): Promise<ActionRespons
 }
 
 /**
- * Fetch all calendar blocks for the authenticated coach
+ * Fetch calendar blocks for the authenticated coach, optionally filtered by date range.
  */
-export async function getCalendarBlocks(): Promise<ActionResponse<CalendarBlock[]>> {
+export async function getCalendarBlocks(filters?: {
+  start_date?: string;
+  end_date?: string;
+}): Promise<ActionResponse<CalendarBlock[]>> {
   try {
     const supabase = await createClient();
 
@@ -88,11 +91,20 @@ export async function getCalendarBlocks(): Promise<ActionResponse<CalendarBlock[
       return { success: false, error: ERROR_MESSAGES.AUTH.NOT_LOGGED_IN, data: [] };
     }
 
-    const { data: blocks, error: fetchError } = await supabase
+    let query = supabase
       .from('calendar_blocks')
       .select('*')
       .eq('coach_id', user.id)
       .order('start_time', { ascending: true });
+
+    if (filters?.start_date) {
+      query = query.gte('end_time', filters.start_date);
+    }
+    if (filters?.end_date) {
+      query = query.lte('start_time', filters.end_date);
+    }
+
+    const { data: blocks, error: fetchError } = await query;
 
     if (fetchError) {
       console.error('Database error fetching calendar blocks:', fetchError);

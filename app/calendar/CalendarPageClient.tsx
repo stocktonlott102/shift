@@ -15,6 +15,17 @@ import type { LessonWithClient } from '@/lib/types/lesson';
 import type { Client } from '@/lib/types/client';
 import type { CalendarBlock } from '@/lib/types/calendar-block';
 
+// Fetch lessons within a 2-year window (1 year back, 1 year forward).
+// This avoids loading a coach's entire history on every calendar mount
+// while still covering all practical navigation ranges.
+function getCalendarDateRange() {
+  const now = new Date();
+  return {
+    start_date: new Date(now.getFullYear() - 1, now.getMonth(), now.getDate()).toISOString(),
+    end_date: new Date(now.getFullYear() + 1, now.getMonth(), now.getDate()).toISOString(),
+  };
+}
+
 interface CalendarPageClientProps {
   coachId: string;
 }
@@ -43,9 +54,9 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
 
       try {
         const [lessonsResult, clientsResult, blocksResult] = await Promise.all([
-          getLessons(),
+          getLessons(getCalendarDateRange()),
           getClients(),
-          getCalendarBlocks(),
+          getCalendarBlocks(getCalendarDateRange()),
         ]);
 
         if (!lessonsResult.success) {
@@ -96,7 +107,7 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
     setSelectedLesson(null);
 
     // Re-fetch lessons
-    const result = await getLessons();
+    const result = await getLessons(getCalendarDateRange());
     if (result.success) {
       setLessons(result.data);
     }
@@ -123,7 +134,7 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
       });
 
       if (result.success) {
-        const lessonsResult = await getLessons();
+        const lessonsResult = await getLessons(getCalendarDateRange());
         if (lessonsResult.success) {
           setLessons(lessonsResult.data);
         }
@@ -151,7 +162,7 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
       });
 
       if (result.success) {
-        const blocksResult = await getCalendarBlocks();
+        const blocksResult = await getCalendarBlocks(getCalendarDateRange());
         setBlocks(blocksResult.data || []);
         router.refresh();
       } else {
@@ -166,7 +177,7 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
   const handleBlockSuccess = async () => {
     setShowEditBlockForm(false);
     setSelectedBlock(null);
-    const blocksResult = await getCalendarBlocks();
+    const blocksResult = await getCalendarBlocks(getCalendarDateRange());
     setBlocks(blocksResult.data || []);
     router.refresh();
   };
@@ -181,7 +192,7 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
   const handleBookingSuccessWithBlocks = async () => {
     setShowBookingForm(false);
     setSelectedSlot(null);
-    const [lessonsResult, blocksResult] = await Promise.all([getLessons(), getCalendarBlocks()]);
+    const [lessonsResult, blocksResult] = await Promise.all([getLessons(getCalendarDateRange()), getCalendarBlocks(getCalendarDateRange())]);
     if (lessonsResult.success) setLessons(lessonsResult.data);
     setBlocks(blocksResult.data || []);
     router.refresh();

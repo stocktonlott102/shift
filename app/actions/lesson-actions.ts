@@ -207,9 +207,7 @@ export async function createLesson(formData: CreateSingleClientLessonInput) {
     });
 
     // Revalidate relevant pages
-    revalidatePath('/lessons');
     revalidatePath('/calendar');
-    revalidatePath('/invoices');
     revalidatePath('/dashboard');
 
     return {
@@ -787,10 +785,7 @@ export async function updateLesson(lessonId: string, formData: unknown) {
     logLessonUpdated(user.id, lessonId, data.title || oldLesson?.title || 'Unknown', validatedData);
 
     // Revalidate relevant pages
-    revalidatePath('/lessons');
     revalidatePath('/calendar');
-    revalidatePath(`/lessons/${lessonId}`);
-    revalidatePath('/dashboard');
 
     return {
       success: true,
@@ -884,9 +879,7 @@ export async function cancelLesson(lessonId: string, cancelData?: unknown) {
     logLessonCancelled(user.id, lessonId, data.title || 'Unknown', validatedCancelData?.cancelled_reason);
 
     // Revalidate relevant pages
-    revalidatePath('/lessons');
     revalidatePath('/calendar');
-    revalidatePath(`/lessons/${lessonId}`);
     revalidatePath('/invoices');
     revalidatePath('/dashboard');
 
@@ -944,9 +937,7 @@ export async function completeLesson(lessonId: string) {
     logLessonCompleted(user.id, lessonId, data.title || 'Unknown');
 
     // Revalidate relevant pages
-    revalidatePath('/lessons');
     revalidatePath('/calendar');
-    revalidatePath(`/lessons/${lessonId}`);
     revalidatePath('/dashboard');
 
     return {
@@ -1026,7 +1017,6 @@ export async function deleteLesson(lessonId: string) {
     logLessonDeleted(user.id, lessonId, lessonData?.title || 'Unknown');
 
     // Revalidate relevant pages
-    revalidatePath('/lessons');
     revalidatePath('/calendar');
     revalidatePath('/dashboard');
 
