@@ -1135,50 +1135,58 @@ export async function getClientBalancesBatch(
       return { success: false, error: ERROR_MESSAGES.AUTH.NOT_LOGGED_IN };
     }
 
-    // Query 1: all pending participant records for these clients
-    const { data: participants, error: pError } = await supabase
-      .from('lesson_participants')
-      .select('client_id, lesson_id, amount_owed')
-      .in('client_id', clientIds)
-      .eq('payment_status', 'Pending');
-
-    if (pError) {
-      console.error('Error fetching lesson_participants batch:', pError);
-      return { success: false, error: ERROR_MESSAGES.PAYMENT.CALCULATE_FAILED };
-    }
-
     // Initialise every client at 0
     const balances: Record<string, number> = {};
     for (const id of clientIds) balances[id] = 0;
 
-    if (!participants || participants.length === 0) {
-      return { success: true, data: balances };
-    }
-
-    // Query 2: verify coach ownership and Completed status for those lesson IDs
-    const lessonIds = [...new Set(participants.map((p) => p.lesson_id))];
-
+    // Query 1: all completed lesson IDs for this coach.
+    // Fetching lessons first (bounded by coach_id) avoids pulling every
+    // lesson_participants row up front. The explicit limit overrides
+    // Supabase's default 1000-row cap which caused silent truncation.
     const { data: completedLessons, error: lError } = await supabase
       .from('lessons')
       .select('id')
-      .in('id', lessonIds)
       .eq('coach_id', user.id)
-      .eq('status', 'Completed');
+      .eq('status', 'Completed')
+      .limit(10000);
 
     if (lError) {
       console.error('Error fetching completed lessons batch:', lError);
       return { success: false, error: ERROR_MESSAGES.PAYMENT.CALCULATE_FAILED };
     }
 
-    const completedIds = new Set((completedLessons || []).map((l) => l.id));
+    if (!completedLessons || completedLessons.length === 0) {
+      return { success: true, data: balances };
+    }
 
-    // Aggregate in JS
+    const completedLessonIds = completedLessons.map((l) => l.id);
+
+    // Query 2: pending participants for those specific lessons + these clients.
+    // Double-filtering (lesson_id IN completed AND client_id IN clients)
+    // keeps the result set small and accurate regardless of account size.
+    const { data: participants, error: pError } = await supabase
+      .from('lesson_participants')
+      .select('client_id, amount_owed')
+      .in('lesson_id', completedLessonIds)
+      .in('client_id', clientIds)
+      .eq('payment_status', 'Pending')
+      .limit(10000);
+
+    if (pError) {
+      console.error('Error fetching lesson_participants batch:', pError);
+      return { success: false, error: ERROR_MESSAGES.PAYMENT.CALCULATE_FAILED };
+    }
+
+    if (!participants || participants.length === 0) {
+      return { success: true, data: balances };
+    }
+
+    // Aggregate in JS — no cross-reference needed since lesson_id is already
+    // verified completed by the first query
     for (const p of participants) {
-      if (completedIds.has(p.lesson_id)) {
-        balances[p.client_id] = Number(
-          ((balances[p.client_id] ?? 0) + (p.amount_owed || 0)).toFixed(2)
-        );
-      }
+      balances[p.client_id] = Number(
+        ((balances[p.client_id] ?? 0) + (p.amount_owed || 0)).toFixed(2)
+      );
     }
 
     return { success: true, data: balances };
