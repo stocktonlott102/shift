@@ -10,13 +10,17 @@
     </linearGradient>
   </defs>
   <rect width="32" height="32" rx="7" fill="url(#bg)"/>
+  <!-- White outline pass renders first, then gradient fill on top -->
   <text
     x="16"
     y="23"
     font-family="system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif"
     font-size="22"
     font-weight="700"
-    fill="url(#letter)"
     text-anchor="middle"
+    fill="url(#letter)"
+    stroke="white"
+    stroke-width="1.5"
+    paint-order="stroke"
   >S</text>
 </svg>
