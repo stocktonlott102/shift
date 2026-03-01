@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
@@ -16,9 +16,44 @@ interface ClientsPageClientProps {
   clientsWithBalances: ClientWithBalance[];
 }
 
+type SortOption = 'name-asc' | 'name-desc' | 'balance-desc' | 'balance-asc';
+
 export default function ClientsPageClient({ coachId, clientsWithBalances }: ClientsPageClientProps) {
   const router = useRouter();
   const [showClientForm, setShowClientForm] = useState(false);
+  const [sortOption, setSortOption] = useState<SortOption>('name-asc');
+  const [fading, setFading] = useState(false);
+  const animationRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const sortedClients = useMemo(() => {
+    const list = [...clientsWithBalances];
+    const nameAsc = (a: ClientWithBalance, b: ClientWithBalance) =>
+      a.first_name.localeCompare(b.first_name) ||
+      (a.last_name ?? '').localeCompare(b.last_name ?? '');
+
+    switch (sortOption) {
+      case 'name-asc':    return list.sort(nameAsc);
+      case 'name-desc':   return list.sort((a, b) =>
+        b.first_name.localeCompare(a.first_name) ||
+        (b.last_name ?? '').localeCompare(a.last_name ?? ''));
+      case 'balance-desc': return list.sort((a, b) =>
+        b.unpaidBalance - a.unpaidBalance || nameAsc(a, b));
+      case 'balance-asc':  return list.sort((a, b) =>
+        a.unpaidBalance - b.unpaidBalance || nameAsc(a, b));
+      default: return list;
+    }
+  }, [clientsWithBalances, sortOption]);
+
+  const handleSortChange = (newSort: SortOption) => {
+    if (newSort === sortOption) return;
+    if (animationRef.current) clearTimeout(animationRef.current);
+    setFading(true);
+    animationRef.current = setTimeout(() => {
+      setSortOption(newSort);
+      setFading(false);
+      animationRef.current = null;
+    }, 150);
+  };
 
   // Handle successful client creation
   const handleClientSuccess = () => {
@@ -107,16 +142,36 @@ export default function ClientsPageClient({ coachId, clientsWithBalances }: Clie
             </div>
           ) : (
             <>
-              {/* Clients Count */}
-              <div className="mb-6">
+              {/* Clients Count + Sort */}
+              <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
                 <p className="text-neutral-600 dark:text-neutral-400">
-                  {clientsWithBalances.length} {clientsWithBalances.length === 1 ? 'Client' : 'Clients'}
+                  {clientsWithBalances.length}{' '}
+                  {clientsWithBalances.length === 1 ? 'Client' : 'Clients'}
                 </p>
+                <div className="flex items-center gap-2">
+                  <label
+                    htmlFor="client-sort"
+                    className="text-sm text-neutral-500 dark:text-neutral-400 whitespace-nowrap"
+                  >
+                    Sort by
+                  </label>
+                  <select
+                    id="client-sort"
+                    value={sortOption}
+                    onChange={(e) => handleSortChange(e.target.value as SortOption)}
+                    className="rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-white px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  >
+                    <option value="name-asc">Name A → Z</option>
+                    <option value="name-desc">Name Z → A</option>
+                    <option value="balance-desc">Balance: High → Low</option>
+                    <option value="balance-asc">Balance: Low → High</option>
+                  </select>
+                </div>
               </div>
 
               {/* Clients Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {clientsWithBalances.map((client) => (
+              <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-opacity duration-150 ${fading ? 'opacity-0' : 'opacity-100'}`}>
+                {sortedClients.map((client) => (
                   <Link
                     key={client.id}
                     href={`/clients/${client.id}`}
