@@ -1113,19 +1113,15 @@ export async function markParticipantPaid(input: unknown): Promise<LessonHistory
  *   Before: 1 getClients query + (2 queries × N clients)
  *   After:  1 getClients query + 2 batch queries (constant)
  *
- * Algorithm:
- *   1. Fetch all lesson_participants with payment_status='Pending' for the given client IDs.
- *   2. Fetch all completed lessons (coach-owned) matching those lesson IDs.
- *   3. Intersect and sum in JS — no migration required.
- *
- * Returns a Map<client_id, balance> so callers can do O(1) lookups.
+ * Returns a plain Record<client_id, balance> (not a Map) so the value
+ * survives Next.js's JSON serialization of server action return values.
  */
 export async function getClientBalancesBatch(
   clientIds: string[]
-): Promise<LessonHistoryActionResponse<Map<string, number>>> {
+): Promise<LessonHistoryActionResponse<Record<string, number>>> {
   try {
     if (clientIds.length === 0) {
-      return { success: true, data: new Map() };
+      return { success: true, data: {} };
     }
 
     const supabase = await createClient();
@@ -1151,8 +1147,12 @@ export async function getClientBalancesBatch(
       return { success: false, error: ERROR_MESSAGES.PAYMENT.CALCULATE_FAILED };
     }
 
+    // Initialise every client at 0
+    const balances: Record<string, number> = {};
+    for (const id of clientIds) balances[id] = 0;
+
     if (!participants || participants.length === 0) {
-      return { success: true, data: new Map(clientIds.map((id) => [id, 0])) };
+      return { success: true, data: balances };
     }
 
     // Query 2: verify coach ownership and Completed status for those lesson IDs
@@ -1173,19 +1173,15 @@ export async function getClientBalancesBatch(
     const completedIds = new Set((completedLessons || []).map((l) => l.id));
 
     // Aggregate in JS
-    const balanceMap = new Map<string, number>(clientIds.map((id) => [id, 0]));
     for (const p of participants) {
       if (completedIds.has(p.lesson_id)) {
-        balanceMap.set(p.client_id, (balanceMap.get(p.client_id) ?? 0) + (p.amount_owed || 0));
+        balances[p.client_id] = Number(
+          ((balances[p.client_id] ?? 0) + (p.amount_owed || 0)).toFixed(2)
+        );
       }
     }
 
-    // Round to 2 decimal places
-    for (const [id, bal] of balanceMap) {
-      balanceMap.set(id, Number(bal.toFixed(2)));
-    }
-
-    return { success: true, data: balanceMap };
+    return { success: true, data: balances };
   } catch (error: any) {
     console.error('Unexpected error in getClientBalancesBatch:', error);
     return { success: false, error: ERROR_MESSAGES.GENERIC.UNEXPECTED_ERROR };

@@ -37,11 +37,11 @@ export default async function ClientsPage() {
   // instead of the previous N+1 pattern (2 queries × number of clients).
   const clientIds = clients.map((c) => c.id);
   const balancesResult = await getClientBalancesBatch(clientIds);
-  const balanceMap = balancesResult.success && balancesResult.data ? balancesResult.data : new Map<string, number>();
+  const balances = balancesResult.success && balancesResult.data ? balancesResult.data : {};
 
   const clientsWithBalances = clients.map((client) => ({
     ...client,
-    unpaidBalance: balanceMap.get(client.id) ?? 0,
+    unpaidBalance: balances[client.id] ?? 0,
   }));
 
   return <ClientsPageClient coachId={user.id} clientsWithBalances={clientsWithBalances} />;
