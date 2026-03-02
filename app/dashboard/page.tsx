@@ -22,6 +22,9 @@ import { getOutstandingLessonsCount } from '@/app/actions/lesson-history-actions
  * checks for protected routes MUST use Server Components and the
  * Supabase Server Client (lib/supabase/server.ts)."
  */
+// Set to true when ready to launch paid subscriptions
+const SUBSCRIPTION_BANNER_ENABLED = false;
+
 export default async function DashboardPage() {
   const supabase = await createClient();
 
@@ -117,7 +120,7 @@ export default async function DashboardPage() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Subscription Status Banner - Only show for non-active users */}
-        {needsSubscription && (
+        {SUBSCRIPTION_BANNER_ENABLED && needsSubscription && (
           <div className={`bg-gradient-to-r ${bannerColor} rounded-lg shadow-xl p-6 sm:p-8 mb-8 text-white`}>
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
               <div className="mb-6 lg:mb-0">
