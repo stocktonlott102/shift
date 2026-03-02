@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import { getClientById } from '@/app/actions/client-actions';
-import Link from 'next/link';
+import BackButton from './BackButton';
 import ClientDetailClient from './ClientDetailClient';
 
 /**
@@ -47,24 +47,7 @@ export default async function ClientDetailPage({ params }: any) {
       <header className="bg-white dark:bg-gray-800 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center space-x-4">
-            <Link
-              href="/clients"
-              className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
-            >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
-                />
-              </svg>
-            </Link>
+            <BackButton />
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
               Client Details
             </h1>
