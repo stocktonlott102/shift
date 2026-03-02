@@ -211,13 +211,6 @@ export default function Navigation() {
           >
             <div className="p-4 space-y-2">
               <Link
-                href="/outstanding-lessons"
-                className="block px-4 py-3 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
-                onClick={() => setShowMobileMenu(false)}
-              >
-                Outstanding Lessons
-              </Link>
-              <Link
                 href="/help-feedback"
                 className="block px-4 py-3 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
                 onClick={() => setShowMobileMenu(false)}

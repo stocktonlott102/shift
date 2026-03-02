@@ -353,8 +353,6 @@ export default function EditLessonForm({
           >
             <option value="Scheduled">Scheduled</option>
             <option value="Completed">Completed</option>
-            <option value="Cancelled">Cancelled</option>
-            <option value="No Show">No Show</option>
           </select>
         </div>
 

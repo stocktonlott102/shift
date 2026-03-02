@@ -1,15 +1,3 @@
-import { Lesson, LessonWithClient } from './lesson';
-
-/**
- * Outstanding Lesson View Model
- * Extends LessonWithClient with convenience properties for UI display
- */
-export interface OutstandingLesson extends LessonWithClient {
-  displayDate: string; // Formatted date like "Dec 15, 2025"
-  displayTime: string; // Formatted time range like "10:00 AM - 11:00 AM"
-  formattedCost: string; // Formatted currency like "$75.00"
-}
-
 /**
  * Lesson History Entry
  * Combines lesson and invoice data for payment tracking
@@ -23,7 +11,7 @@ export interface LessonHistoryEntry {
   serviceType: string; // lesson.title
   duration: number; // hours
   charge: number; // amount_owed for this client from lesson_participants
-  lessonStatus: 'Scheduled' | 'Completed' | 'Canceled' | 'No Show';
+  lessonStatus: 'Scheduled' | 'Completed';
   paymentStatus: 'Pending' | 'Paid' | 'Overdue' | 'Canceled';
   paidAt?: string | null;
   notes?: string;
@@ -70,14 +58,6 @@ export interface LessonHistoryActionResponse<T = any> {
   data?: T;
   error?: string;
   message?: string;
-}
-
-/**
- * Outstanding Lessons Count Response
- * Response type for getting count of outstanding lessons
- */
-export interface OutstandingLessonsCountResponse {
-  count: number;
 }
 
 /**

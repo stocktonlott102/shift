@@ -5,7 +5,6 @@ import SubscribeButton from '@/components/SubscribeButton';
 import Navigation from '@/components/Navigation';
 import DashboardWrapper from '@/components/DashboardWrapper';
 import { checkSubscriptionStatus } from '@/app/actions/stripe-actions';
-import { getOutstandingLessonsCount } from '@/app/actions/lesson-history-actions';
 
 /**
  * Protected Dashboard Page (Server Component)
@@ -41,10 +40,6 @@ export default async function DashboardPage() {
 
   // Fetch subscription status
   const subscriptionStatus = await checkSubscriptionStatus();
-
-  // Fetch outstanding lessons count
-  const outstandingLessonsResult = await getOutstandingLessonsCount();
-  const outstandingCount = outstandingLessonsResult.success ? outstandingLessonsResult.data?.count || 0 : 0;
 
   // Extract subscription data
   const currentStatus = subscriptionStatus.success ? subscriptionStatus.subscriptionStatus : 'trial';
@@ -156,20 +151,7 @@ export default async function DashboardPage() {
 
         {/* Dashboard Overview Cards */}
         <div className="flex justify-center mb-8">
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-5xl">
-            {/* Outstanding Lessons Card */}
-            <Link
-              href="/outstanding-lessons"
-              className="flex flex-col items-center text-center bg-rose-50 dark:bg-rose-900/20 border-2 border-rose-200 dark:border-rose-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-all duration-200 transform hover:scale-105 cursor-pointer"
-            >
-              <span className="flex items-center justify-center w-12 h-12 rounded-full bg-orange-500 text-white text-lg font-bold mb-3">
-                {outstandingCount}
-              </span>
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Outstanding Lessons
-              </h3>
-            </Link>
-
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 w-full max-w-3xl">
             {/* Clients Card */}
             <Link
               href="/clients"

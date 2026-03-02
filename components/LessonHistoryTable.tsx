@@ -12,8 +12,7 @@ interface LessonHistoryTableProps {
   onEditLesson?: (lessonId: string) => void;
 }
 
-type PaymentStatusFilter = 'All' | 'Pending' | 'Paid' | 'Overdue';
-type TimeframeFilter = 'past' | 'upcoming' | 'all';
+type StatusFilter = 'All' | 'Upcoming' | 'Payment Pending' | 'Paid';
 type SortField = 'date' | 'status' | 'amount';
 type SortOrder = 'asc' | 'desc';
 
@@ -24,8 +23,7 @@ export default function LessonHistoryTable({
   onRefresh,
   onEditLesson,
 }: LessonHistoryTableProps) {
-  const [paymentFilter, setPaymentFilter] = useState<PaymentStatusFilter>('All');
-  const [timeframeFilter, setTimeframeFilter] = useState<TimeframeFilter>('past');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('All');
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -34,27 +32,20 @@ export default function LessonHistoryTable({
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Filter lessons based on timeframe
-  const timeframeFilteredLessons = useMemo(() => {
+  // Filter lessons based on combined status
+  const filteredLessons = useMemo(() => {
     const now = new Date();
-    switch (timeframeFilter) {
-      case 'past':
-        return lessons.filter((l) => new Date(l.startTime) < now);
-      case 'upcoming':
-        return lessons.filter((l) => new Date(l.startTime) >= now);
-      case 'all':
+    switch (statusFilter) {
+      case 'Upcoming':
+        return lessons.filter((l) => new Date(l.startTime) > now);
+      case 'Payment Pending':
+        return lessons.filter((l) => new Date(l.endTime) <= now && l.paymentStatus === 'Pending');
+      case 'Paid':
+        return lessons.filter((l) => l.paymentStatus === 'Paid');
       default:
         return lessons;
     }
-  }, [lessons, timeframeFilter]);
-
-  // Filter lessons based on payment status
-  const filteredLessons = useMemo(() => {
-    if (paymentFilter === 'All') {
-      return timeframeFilteredLessons;
-    }
-    return timeframeFilteredLessons.filter((lesson) => lesson.paymentStatus === paymentFilter);
-  }, [timeframeFilteredLessons, paymentFilter]);
+  }, [lessons, statusFilter]);
 
   // Sort filtered lessons
   const sortedLessons = useMemo(() => {
@@ -92,9 +83,10 @@ export default function LessonHistoryTable({
     }
   }, [successMessage, error]);
 
-  // Count pending lessons for bulk action
+  // Count past lessons with pending payment for bulk action
   const pendingCount = useMemo(() => {
-    return lessons.filter((l) => l.lessonStatus === 'Completed' && l.paymentStatus === 'Pending').length;
+    const now = new Date();
+    return lessons.filter((l) => new Date(l.endTime) <= now && l.paymentStatus === 'Pending').length;
   }, [lessons]);
 
   // Handle marking single lesson as paid
@@ -174,34 +166,16 @@ export default function LessonHistoryTable({
     return `$${amount.toFixed(2)}`;
   };
 
-  const getLessonStatusColor = (status: string) => {
-    switch (status) {
-      case 'Completed':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
-      case 'Scheduled':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
-      case 'No Show':
-        return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
-      case 'Canceled':
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+  // Combined status badge: derives display state from timing + payment status
+  const getStatusBadge = (lesson: LessonHistoryEntry) => {
+    const now = new Date();
+    if (new Date(lesson.startTime) > now) {
+      return { label: 'Upcoming', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' };
     }
-  };
-
-  const getPaymentStatusColor = (status: string) => {
-    switch (status) {
-      case 'Paid':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
-      case 'Pending':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
-      case 'Overdue':
-        return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
-      case 'Canceled':
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+    if (lesson.paymentStatus === 'Paid') {
+      return { label: 'Paid', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' };
     }
+    return { label: 'Payment Pending', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' };
   };
 
   if (lessons.length === 0) {
@@ -212,7 +186,7 @@ export default function LessonHistoryTable({
           No Lesson History
         </h3>
         <p className="text-gray-600 dark:text-gray-400">
-          Confirmed lessons will appear here once they have been completed.
+          Lessons will appear here once scheduled.
         </p>
       </div>
     );
@@ -278,36 +252,20 @@ export default function LessonHistoryTable({
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
           <div className="flex flex-wrap items-center gap-4">
-            {/* Timeframe Filter */}
+            {/* Status Filter */}
             <div className="flex items-center gap-2">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Show:
+                Status:
               </label>
               <select
-                value={timeframeFilter}
-                onChange={(e) => setTimeframeFilter(e.target.value as TimeframeFilter)}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                <option value="past">Past Lessons</option>
-                <option value="upcoming">Upcoming</option>
-                <option value="all">All</option>
-              </select>
-            </div>
-
-            {/* Payment Status Filter */}
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Payment:
-              </label>
-              <select
-                value={paymentFilter}
-                onChange={(e) => setPaymentFilter(e.target.value as PaymentStatusFilter)}
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
                 className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               >
                 <option value="All">All</option>
-                <option value="Pending">Pending</option>
+                <option value="Upcoming">Upcoming</option>
+                <option value="Payment Pending">Payment Pending</option>
                 <option value="Paid">Paid</option>
-                <option value="Overdue">Overdue</option>
               </select>
             </div>
           </div>
@@ -359,10 +317,7 @@ export default function LessonHistoryTable({
                   Charge
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Lesson Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Payment
+                  Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Actions
@@ -372,7 +327,7 @@ export default function LessonHistoryTable({
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {sortedLessons.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                     No lessons match the selected filter
                   </td>
                 </tr>
@@ -398,39 +353,25 @@ export default function LessonHistoryTable({
                       {formatCurrency(lesson.charge)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getLessonStatusColor(
-                          lesson.lessonStatus
-                        )}`}
-                      >
-                        {lesson.lessonStatus}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {lesson.lessonStatus === 'Completed' ? (
-                        <>
-                          <span
-                            className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getPaymentStatusColor(
-                              lesson.paymentStatus
-                            )}`}
-                          >
-                            {lesson.paymentStatus}
-                          </span>
-                          {lesson.paidAt && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                              Paid: {formatDate(lesson.paidAt)}
-                            </p>
-                          )}
-                        </>
-                      ) : (
-                        <span className="text-xs text-gray-500 dark:text-gray-400 italic">
-                          Not applicable
-                        </span>
-                      )}
+                      {(() => {
+                        const { label, color } = getStatusBadge(lesson);
+                        return (
+                          <>
+                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${color}`}>
+                              {label}
+                            </span>
+                            {lesson.paidAt && label === 'Paid' && (
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                {formatDate(lesson.paidAt)}
+                              </p>
+                            )}
+                          </>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex flex-col gap-2">
-                        {lesson.lessonStatus === 'Completed' && (
+                        {new Date(lesson.endTime) <= new Date() && (
                           <>
                             {lesson.paymentStatus === 'Pending' && (
                               <button

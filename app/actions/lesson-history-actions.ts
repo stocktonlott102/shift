@@ -5,14 +5,10 @@ import { revalidatePath } from 'next/cache';
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/lib/constants/messages';
 import {
   LessonHistoryActionResponse,
-  OutstandingLessonsCountResponse,
   LessonHistoryEntry,
   LessonHistoryFilters,
 } from '@/lib/types/lesson-history';
-import { LessonWithClient } from '@/lib/types/lesson';
 import {
-  ConfirmLessonSchema,
-  MarkLessonNoShowSchema,
   GetLessonHistorySchema,
   CalculateUnpaidBalanceSchema,
   MarkLessonAsPaidSchema,
@@ -22,361 +18,9 @@ import {
   MarkLessonParticipantsPaidSchema,
 } from '@/lib/validations/lesson-history';
 import {
-  logLessonCompleted,
-  logLessonNoShow,
   logPaymentMarkedPaid,
   logBulkPaymentsMarkedPaid,
 } from '@/lib/audit-log';
-
-/**
- * Get all outstanding lessons that need confirmation
- * Returns lessons that are scheduled but have passed their end time
- */
-export async function getOutstandingLessons(): Promise<
-  LessonHistoryActionResponse<LessonWithClient[]>
-> {
-  try {
-    const supabase = await createClient();
-
-    // Verify authentication
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return {
-        success: false,
-        error: ERROR_MESSAGES.AUTH.NOT_LOGGED_IN,
-      };
-    }
-
-    // Query lessons that are scheduled and past their end time
-    const now = new Date().toISOString();
-    const { data: lessons, error: queryError } = await supabase
-      .from('lessons')
-      .select(
-        `
-        *,
-        client:clients (
-          id,
-          first_name,
-          last_name,
-          parent_email,
-          parent_phone
-        ),
-        lesson_participants (
-          id,
-          client_id,
-          amount_owed,
-          client:clients (
-            id,
-            first_name,
-            last_name,
-            parent_email,
-            parent_phone
-          )
-        )
-      `
-      )
-      .eq('coach_id', user.id)
-      .eq('status', 'Scheduled')
-      .lt('end_time', now)
-      .order('end_time', { ascending: true });
-
-    if (queryError) {
-      console.error('Error fetching outstanding lessons:', queryError);
-      return {
-        success: false,
-        error: ERROR_MESSAGES.LESSON_HISTORY.FETCH_FAILED,
-      };
-    }
-
-    return {
-      success: true,
-      data: lessons || [],
-    };
-  } catch (error: any) {
-    console.error('Unexpected error in getOutstandingLessons:', error);
-    return {
-      success: false,
-      error: ERROR_MESSAGES.GENERIC.UNEXPECTED_ERROR,
-    };
-  }
-}
-
-/**
- * Get count of outstanding lessons for notification badge
- */
-export async function getOutstandingLessonsCount(): Promise<
-  LessonHistoryActionResponse<OutstandingLessonsCountResponse>
-> {
-  try {
-    const supabase = await createClient();
-
-    // Verify authentication
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return {
-        success: false,
-        error: ERROR_MESSAGES.AUTH.NOT_LOGGED_IN,
-      };
-    }
-
-    // Query count of outstanding lessons
-    const now = new Date().toISOString();
-    const { count, error: queryError } = await supabase
-      .from('lessons')
-      .select('*', { count: 'exact', head: true })
-      .eq('coach_id', user.id)
-      .eq('status', 'Scheduled')
-      .lt('end_time', now);
-
-    if (queryError) {
-      console.error('Error fetching outstanding lessons count:', queryError);
-      return {
-        success: false,
-        error: ERROR_MESSAGES.LESSON_HISTORY.FETCH_FAILED,
-      };
-    }
-
-    return {
-      success: true,
-      data: { count: count || 0 },
-    };
-  } catch (error: any) {
-    console.error('Unexpected error in getOutstandingLessonsCount:', error);
-    return {
-      success: false,
-      error: ERROR_MESSAGES.GENERIC.UNEXPECTED_ERROR,
-    };
-  }
-}
-
-/**
- * Confirm that a lesson occurred
- * Updates lesson status from Scheduled to Completed
- * Uses Zod validation to prevent injection attacks
- */
-export async function confirmLesson(input: unknown): Promise<LessonHistoryActionResponse> {
-  try {
-    // SECURITY: Validate and sanitize all input using Zod
-    const validationResult = ConfirmLessonSchema.safeParse(input);
-
-    if (!validationResult.success) {
-      const firstError = validationResult.error.issues[0];
-      return {
-        success: false,
-        error: `${firstError.path.join('.')}: ${firstError.message}`,
-      };
-    }
-
-    const { lessonId } = validationResult.data;
-
-    const supabase = await createClient();
-
-    // Verify authentication
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return {
-        success: false,
-        error: ERROR_MESSAGES.AUTH.NOT_LOGGED_IN,
-      };
-    }
-
-    // First, fetch the lesson to validate status and ownership
-    const { data: lesson, error: fetchError } = await supabase
-      .from('lessons')
-      .select('*')
-      .eq('id', lessonId)
-      .eq('coach_id', user.id)
-      .single();
-
-    if (fetchError || !lesson) {
-      return {
-        success: false,
-        error: ERROR_MESSAGES.LESSON.NOT_FOUND,
-      };
-    }
-
-    // Validate lesson status
-    if (lesson.status !== 'Scheduled') {
-      return {
-        success: false,
-        error: ERROR_MESSAGES.LESSON_HISTORY.INVALID_STATUS,
-      };
-    }
-
-    // Validate lesson has ended
-    const now = new Date();
-    const lessonEndTime = new Date(lesson.end_time);
-    if (lessonEndTime > now) {
-      return {
-        success: false,
-        error: ERROR_MESSAGES.LESSON_HISTORY.FUTURE_LESSON,
-      };
-    }
-
-    // Update lesson status to Completed
-    const { error: updateError } = await supabase
-      .from('lessons')
-      .update({
-        status: 'Completed',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', lessonId)
-      .eq('coach_id', user.id);
-
-    if (updateError) {
-      console.error('Error confirming lesson:', updateError);
-      return {
-        success: false,
-        error: ERROR_MESSAGES.LESSON_HISTORY.CONFIRM_FAILED,
-      };
-    }
-
-    // Log lesson confirmation (fire-and-forget)
-    logLessonCompleted(user.id, lessonId, lesson.title || 'Unknown');
-
-    // Revalidate pages that display lesson data
-    revalidatePath('/outstanding-lessons');
-    revalidatePath('/clients/[id]', 'page');
-    revalidatePath('/calendar');
-    revalidatePath('/dashboard');
-
-    return {
-      success: true,
-      message: SUCCESS_MESSAGES.LESSON_HISTORY.CONFIRMED,
-    };
-  } catch (error: any) {
-    console.error('Unexpected error in confirmLesson:', error);
-    return {
-      success: false,
-      error: ERROR_MESSAGES.GENERIC.UNEXPECTED_ERROR,
-    };
-  }
-}
-
-/**
- * Mark a lesson as No Show
- * Updates lesson status to 'No Show' and cancels associated invoice
- * Uses Zod validation to prevent injection attacks
- */
-export async function markLessonNoShow(input: unknown): Promise<LessonHistoryActionResponse> {
-  try {
-    // SECURITY: Validate and sanitize all input using Zod
-    const validationResult = MarkLessonNoShowSchema.safeParse(input);
-
-    if (!validationResult.success) {
-      const firstError = validationResult.error.issues[0];
-      return {
-        success: false,
-        error: `${firstError.path.join('.')}: ${firstError.message}`,
-      };
-    }
-
-    const { lessonId } = validationResult.data;
-
-    const supabase = await createClient();
-
-    // Verify authentication
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return {
-        success: false,
-        error: ERROR_MESSAGES.AUTH.NOT_LOGGED_IN,
-      };
-    }
-
-    // First, fetch the lesson to validate ownership and status
-    const { data: lesson, error: fetchError } = await supabase
-      .from('lessons')
-      .select('*')
-      .eq('id', lessonId)
-      .eq('coach_id', user.id)
-      .single();
-
-    if (fetchError || !lesson) {
-      return {
-        success: false,
-        error: ERROR_MESSAGES.LESSON.NOT_FOUND,
-      };
-    }
-
-    // Validate lesson status
-    if (lesson.status !== 'Scheduled') {
-      return {
-        success: false,
-        error: ERROR_MESSAGES.LESSON_HISTORY.NOT_SCHEDULED,
-      };
-    }
-
-    // Update lesson status to No Show
-    const { error: updateLessonError } = await supabase
-      .from('lessons')
-      .update({
-        status: 'No Show',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', lessonId)
-      .eq('coach_id', user.id);
-
-    if (updateLessonError) {
-      console.error('Error marking lesson as no-show:', updateLessonError);
-      return {
-        success: false,
-        error: ERROR_MESSAGES.LESSON_HISTORY.CONFIRM_FAILED,
-      };
-    }
-
-    // Update associated invoice to Canceled status
-    const { error: updateInvoiceError } = await supabase
-      .from('invoices')
-      .update({
-        payment_status: 'Canceled',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('lesson_id', lessonId)
-      .eq('coach_id', user.id);
-
-    if (updateInvoiceError) {
-      console.error('Error updating invoice for no-show:', updateInvoiceError);
-      // Note: We continue even if invoice update fails, as lesson status is more critical
-    }
-
-    // Log lesson no-show (fire-and-forget)
-    logLessonNoShow(user.id, lessonId, lesson.title || 'Unknown');
-
-    // Revalidate pages that display lesson data
-    revalidatePath('/outstanding-lessons');
-    revalidatePath('/clients/[id]', 'page');
-    revalidatePath('/calendar');
-    revalidatePath('/dashboard');
-
-    return {
-      success: true,
-      message: SUCCESS_MESSAGES.LESSON_HISTORY.MARKED_NO_SHOW,
-    };
-  } catch (error: any) {
-    console.error('Unexpected error in markLessonNoShow:', error);
-    return {
-      success: false,
-      error: ERROR_MESSAGES.GENERIC.UNEXPECTED_ERROR,
-    };
-  }
-}
 
 /**
  * Get lesson history for a specific client
@@ -601,7 +245,7 @@ export async function calculateUnpaidBalance(input: unknown): Promise<LessonHist
     // Step 3: Fetch lessons to check status and coach ownership
     const { data: lessons, error: lError } = await supabase
       .from('lessons')
-      .select('id, status, coach_id')
+      .select('id, status, end_time, coach_id')
       .in('id', lessonIds)
       .eq('coach_id', user.id);
 
@@ -614,14 +258,13 @@ export async function calculateUnpaidBalance(input: unknown): Promise<LessonHist
     }
 
     console.log(`[calculateUnpaidBalance] Found ${lessons?.length || 0} lessons matching coach`);
-    if (lessons && lessons.length > 0) {
-      console.log('[calculateUnpaidBalance] Lessons:', lessons);
-    }
 
-    // Step 4: Create a map of completed lesson IDs
+    // Step 4: Create a set of payable lesson IDs
+    // Includes Completed lessons and any past Scheduled lessons (safety net post-migration)
+    const now = new Date();
     const completedLessonIds = new Set(
       (lessons || [])
-        .filter(l => l.status === 'Completed')
+        .filter(l => l.status === 'Completed' || (l.status === 'Scheduled' && new Date(l.end_time) < now))
         .map(l => l.id)
     );
 
@@ -685,10 +328,10 @@ export async function markLessonAsPaid(input: unknown): Promise<LessonHistoryAct
       };
     }
 
-    // Fetch the lesson to validate it's completed
+    // Fetch the lesson to validate ownership and timing
     const { data: lesson, error: fetchError } = await supabase
       .from('lessons')
-      .select('status')
+      .select('status, end_time')
       .eq('id', lessonId)
       .eq('coach_id', user.id)
       .single();
@@ -700,12 +343,21 @@ export async function markLessonAsPaid(input: unknown): Promise<LessonHistoryAct
       };
     }
 
-    // Validate lesson is completed
-    if (lesson.status !== 'Completed') {
+    // Validate lesson has already ended (can't pay for a future lesson)
+    if (new Date(lesson.end_time) > new Date()) {
       return {
         success: false,
         error: ERROR_MESSAGES.PAYMENT.NOT_COMPLETED,
       };
+    }
+
+    // Auto-transition Scheduled → Completed for any past lesson not yet confirmed
+    if (lesson.status === 'Scheduled') {
+      await supabase
+        .from('lessons')
+        .update({ status: 'Completed', updated_at: new Date().toISOString() })
+        .eq('id', lessonId)
+        .eq('coach_id', user.id);
     }
 
     // Update lesson_participants for this lesson to mark as paid
@@ -806,10 +458,10 @@ export async function markLessonAsUnpaid(input: unknown): Promise<LessonHistoryA
       };
     }
 
-    // Fetch the lesson to validate it exists and belongs to this coach
+    // Verify the lesson exists and belongs to this coach
     const { data: lesson, error: fetchError } = await supabase
       .from('lessons')
-      .select('status')
+      .select('id')
       .eq('id', lessonId)
       .eq('coach_id', user.id)
       .single();
@@ -818,14 +470,6 @@ export async function markLessonAsUnpaid(input: unknown): Promise<LessonHistoryA
       return {
         success: false,
         error: ERROR_MESSAGES.LESSON.NOT_FOUND,
-      };
-    }
-
-    // Validate lesson is completed
-    if (lesson.status !== 'Completed') {
-      return {
-        success: false,
-        error: ERROR_MESSAGES.PAYMENT.NOT_COMPLETED,
       };
     }
 
@@ -928,14 +572,15 @@ export async function markAllLessonsPaid(input: unknown): Promise<LessonHistoryA
       };
     }
 
-    // Step 2: Get the lessons to verify they're completed and belong to this coach
+    // Step 2: Get the lessons to verify they're past and belong to this coach
     const lessonIds = participants.map(p => p.lesson_id);
+    const now = new Date().toISOString();
     const { data: lessons, error: lessonsError } = await supabase
       .from('lessons')
       .select('id')
       .eq('coach_id', user.id)
-      .eq('status', 'Completed')
-      .in('id', lessonIds);
+      .in('id', lessonIds)
+      .lte('end_time', now);
 
     if (lessonsError) {
       console.error('Error fetching lessons:', lessonsError);
@@ -1090,7 +735,6 @@ export async function markParticipantPaid(input: unknown): Promise<LessonHistory
     }
 
     // Revalidate pages that display lesson data
-    revalidatePath('/outstanding-lessons');
     revalidatePath('/clients/[id]', 'page');
     revalidatePath('/dashboard');
 
@@ -1139,15 +783,17 @@ export async function getClientBalancesBatch(
     const balances: Record<string, number> = {};
     for (const id of clientIds) balances[id] = 0;
 
-    // Query 1: all completed lesson IDs for this coach.
-    // Fetching lessons first (bounded by coach_id) avoids pulling every
-    // lesson_participants row up front. The explicit limit overrides
-    // Supabase's default 1000-row cap which caused silent truncation.
+    // Query 1: all past lesson IDs for this coach (end_time ≤ now).
+    // Using end_time instead of status covers both Completed and any past
+    // Scheduled lessons (safety net). Fetching lessons first (bounded by
+    // coach_id) avoids pulling every lesson_participants row up front.
+    // The explicit limit overrides Supabase's default 1000-row cap.
+    const batchNow = new Date().toISOString();
     const { data: completedLessons, error: lError } = await supabase
       .from('lessons')
       .select('id')
       .eq('coach_id', user.id)
-      .eq('status', 'Completed')
+      .lte('end_time', batchNow)
       .limit(10000);
 
     if (lError) {
@@ -1266,7 +912,6 @@ export async function markLessonParticipantsPaid(input: unknown): Promise<Lesson
     }
 
     // Revalidate pages that display lesson data
-    revalidatePath('/outstanding-lessons');
     revalidatePath('/clients/[id]', 'page');
     revalidatePath('/dashboard');
 
