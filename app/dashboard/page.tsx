@@ -138,7 +138,7 @@ export default async function DashboardPage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Subscription Status Banner - Only show for non-active users */}
         {SUBSCRIPTION_BANNER_ENABLED && needsSubscription && (
           <div className={`bg-gradient-to-r ${bannerColor} rounded-lg shadow-xl p-6 sm:p-8 mb-8 text-white`}>
@@ -175,14 +175,13 @@ export default async function DashboardPage() {
         )}
 
         {/* Dashboard Overview Cards */}
-        <div className="flex justify-center mb-8">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 w-full max-w-3xl">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
             {/* Clients Card */}
             <Link
               href="/clients"
-              className="flex flex-col items-center text-center bg-indigo-50 dark:bg-indigo-900/20 border-2 border-indigo-200 dark:border-indigo-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-all duration-200 transform hover:scale-105 cursor-pointer"
+              className="flex flex-col items-center justify-center text-center bg-indigo-50 dark:bg-indigo-900/20 border-2 border-indigo-200 dark:border-indigo-800 rounded-xl shadow-md p-10 hover:shadow-lg transition-all duration-200 transform hover:scale-105 cursor-pointer min-h-[220px]"
             >
-              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900/40 mb-3 text-indigo-600 dark:text-indigo-400">
+              <div className="flex items-center justify-center w-14 h-14 rounded-full bg-indigo-100 dark:bg-indigo-900/40 mb-4 text-indigo-600 dark:text-indigo-400">
                 <svg
                   className="w-7 h-7"
                   fill="none"
@@ -197,13 +196,13 @@ export default async function DashboardPage() {
                   />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 Clients
               </h3>
-              <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 mb-1">
+              <p className="text-5xl font-bold text-indigo-600 dark:text-indigo-400 mb-2">
                 {clientCount}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 Manage your roster
               </p>
             </Link>
@@ -211,9 +210,9 @@ export default async function DashboardPage() {
             {/* Lesson Types Card */}
             <Link
               href="/lesson-types"
-              className="flex flex-col items-center text-center bg-violet-50 dark:bg-violet-900/20 border-2 border-violet-200 dark:border-violet-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-all duration-200 transform hover:scale-105 cursor-pointer"
+              className="flex flex-col items-center justify-center text-center bg-violet-50 dark:bg-violet-900/20 border-2 border-violet-200 dark:border-violet-800 rounded-xl shadow-md p-10 hover:shadow-lg transition-all duration-200 transform hover:scale-105 cursor-pointer min-h-[220px]"
             >
-              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-violet-100 dark:bg-violet-900/40 mb-3 text-violet-600 dark:text-violet-400">
+              <div className="flex items-center justify-center w-14 h-14 rounded-full bg-violet-100 dark:bg-violet-900/40 mb-4 text-violet-600 dark:text-violet-400">
                 <svg
                   className="w-7 h-7"
                   fill="none"
@@ -228,13 +227,13 @@ export default async function DashboardPage() {
                   />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 Lesson Types
               </h3>
-              <p className="text-3xl font-bold text-violet-600 dark:text-violet-400 mb-1">
+              <p className="text-5xl font-bold text-violet-600 dark:text-violet-400 mb-2">
                 {lessonTypeCount}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 Set up your services
               </p>
             </Link>
@@ -242,9 +241,9 @@ export default async function DashboardPage() {
             {/* Financials Card */}
             <Link
               href="/financials"
-              className="flex flex-col items-center text-center bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-200 dark:border-emerald-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-all duration-200 transform hover:scale-105 cursor-pointer"
+              className="flex flex-col items-center justify-center text-center bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-200 dark:border-emerald-800 rounded-xl shadow-md p-10 hover:shadow-lg transition-all duration-200 transform hover:scale-105 cursor-pointer min-h-[220px]"
             >
-              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/40 mb-3 text-emerald-600 dark:text-emerald-400">
+              <div className="flex items-center justify-center w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-900/40 mb-4 text-emerald-600 dark:text-emerald-400">
                 <svg
                   className="w-7 h-7"
                   fill="none"
@@ -259,23 +258,22 @@ export default async function DashboardPage() {
                   />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 Financials
               </h3>
               {totalUnpaidBalance > 0 ? (
-                <p className="text-3xl font-bold text-amber-500 dark:text-amber-400 mb-1">
+                <p className="text-4xl font-bold text-amber-500 dark:text-amber-400 mb-2">
                   ${totalUnpaidBalance.toFixed(2)}
                 </p>
               ) : (
-                <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 mb-1">
+                <p className="text-5xl font-bold text-emerald-600 dark:text-emerald-400 mb-2">
                   $0.00
                 </p>
               )}
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 {totalUnpaidBalance > 0 ? 'Pending balance' : 'All paid up'}
               </p>
             </Link>
-          </div>
         </div>
 
         {/* Beta Notice */}

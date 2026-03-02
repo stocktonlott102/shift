@@ -101,9 +101,9 @@ export default function Navigation() {
       {!isMobile && (
         <nav className="fixed top-0 left-0 right-0 bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700 shadow-sm z-50">
           <div className="w-full px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="grid grid-cols-3 items-center h-16">
             {/* Logo/Brand */}
-            <div className="flex-shrink-0 flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold bg-gradient-to-r from-secondary-purple via-secondary-fuchsia to-secondary-pink bg-clip-text text-transparent">
                 Shift
               </h1>
@@ -112,8 +112,8 @@ export default function Navigation() {
               </span>
             </div>
 
-            {/* Navigation Links */}
-            <div className="flex items-center space-x-1">
+            {/* Navigation Links - truly centered */}
+            <div className="flex justify-center items-center space-x-1">
               {navItems
                 .filter((item) => !item.mobileOnly)
                 .map((item) => (
@@ -132,7 +132,7 @@ export default function Navigation() {
             </div>
 
             {/* Settings Button */}
-            <div>
+            <div className="flex justify-end">
               <Link
                 href="/settings"
                 className={`p-2 rounded-full transition-all duration-200 ${
