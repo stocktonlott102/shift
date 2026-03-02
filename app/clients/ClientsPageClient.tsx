@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 import ClientForm from '@/components/ClientForm';
@@ -18,10 +18,18 @@ interface ClientsPageClientProps {
 
 type SortOption = 'name-asc' | 'name-desc' | 'balance-desc' | 'balance-asc';
 
+const VALID_SORTS: SortOption[] = ['name-asc', 'name-desc', 'balance-desc', 'balance-asc'];
+
 export default function ClientsPageClient({ coachId, clientsWithBalances }: ClientsPageClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [showClientForm, setShowClientForm] = useState(false);
-  const [sortOption, setSortOption] = useState<SortOption>('name-asc');
+
+  // Read initial sort from URL so back-navigation restores the user's choice
+  const initialSort = searchParams.get('sort') as SortOption | null;
+  const [sortOption, setSortOption] = useState<SortOption>(
+    initialSort && VALID_SORTS.includes(initialSort) ? initialSort : 'name-asc'
+  );
   const [fading, setFading] = useState(false);
   const animationRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -47,6 +55,10 @@ export default function ClientsPageClient({ coachId, clientsWithBalances }: Clie
   const handleSortChange = (newSort: SortOption) => {
     if (newSort === sortOption) return;
     if (animationRef.current) clearTimeout(animationRef.current);
+
+    // Persist in URL so back-navigation restores this sort
+    router.replace(`/clients?sort=${newSort}`, { scroll: false });
+
     setFading(true);
     animationRef.current = setTimeout(() => {
       setSortOption(newSort);
