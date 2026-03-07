@@ -8,6 +8,8 @@ import BookLessonForm from '@/components/BookLessonForm';
 import EditLessonForm from '@/components/EditLessonForm';
 import EditBlockForm from '@/components/EditBlockForm';
 import Navigation from '@/components/Navigation';
+import TutorialModal from '@/components/TutorialModal';
+import { useTutorial } from '@/hooks/useTutorial';
 import { getLessons, updateLesson } from '@/app/actions/lesson-actions';
 import { getClients } from '@/app/actions/client-actions';
 import { getCalendarBlocks, updateCalendarBlock } from '@/app/actions/calendar-block-actions';
@@ -32,6 +34,7 @@ interface CalendarPageClientProps {
 
 export default function CalendarPageClient({ coachId }: CalendarPageClientProps) {
   const router = useRouter();
+  const { showTutorial, closeTutorial } = useTutorial();
   const [lessons, setLessons] = useState<LessonWithClient[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [blocks, setBlocks] = useState<CalendarBlock[]>([]);
@@ -242,6 +245,7 @@ export default function CalendarPageClient({ coachId }: CalendarPageClientProps)
 
   return (
     <>
+      {showTutorial && <TutorialModal onClose={closeTutorial} />}
       <Navigation />
       <main className="flex flex-col h-screen bg-neutral-50 dark:bg-neutral-900">
         {/* Header - Hidden on mobile */}

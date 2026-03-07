@@ -5,7 +5,37 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Navigation from '@/components/Navigation';
 import LogoutButton from '@/components/LogoutButton';
+import TutorialModal from '@/components/TutorialModal';
+import AccordionFAQ from '@/components/AccordionFAQ';
 import { updateEmailAction } from '@/app/actions/auth-actions';
+
+const faqItems = [
+  {
+    id: 'calendar',
+    title: 'Calendar',
+    content: 'The Calendar is your main workspace. Tap any time slot to book a lesson or add a time block. Lessons appear color-coded and you can tap them to view details, edit, or mark payment.',
+  },
+  {
+    id: 'dashboard',
+    title: 'Dashboard',
+    content: 'The Dashboard gives you a snapshot of your business. See how many active clients you have, how many lesson types are set up, and your current pending balance at a glance.',
+  },
+  {
+    id: 'clients',
+    title: 'Clients',
+    content: 'Clients is your roster. Add a new client with their name and contact info, then view their full lesson history and any outstanding balance from their profile page.',
+  },
+  {
+    id: 'lesson-types',
+    title: 'Lesson Types',
+    content: 'Lesson Types define your services. Create types like "60-min Private" or "Group Session" with a default rate, then select them when booking so pricing fills in automatically.',
+  },
+  {
+    id: 'financials',
+    title: 'Financials',
+    content: 'Financials tracks what you are owed. See a breakdown of pending payments across all clients and mark lessons as paid once you collect.',
+  },
+];
 
 interface SettingsClientProps {
   user: User;
@@ -19,6 +49,7 @@ export default function SettingsClient({ user }: SettingsClientProps) {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [emailConfirmed, setEmailConfirmed] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   // Check if email was just confirmed via URL parameter
   useEffect(() => {
@@ -227,29 +258,35 @@ export default function SettingsClient({ user }: SettingsClientProps) {
             </div>
           </div>
 
-          {/* Placeholder for Future Sections */}
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
-            <div className="flex items-start">
-              <svg
-                className="w-6 h-6 text-blue-600 dark:text-blue-400 mt-0.5 mr-3 flex-shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
+          {/* Help & Getting Started Section */}
+          {showTutorial && <TutorialModal onClose={() => setShowTutorial(false)} />}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                Help & Getting Started
+              </h2>
+            </div>
+            <div className="p-6 space-y-6">
               <div>
-                <h3 className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-1">
-                  More Settings Coming Soon
-                </h3>
-                <p className="text-sm text-blue-700 dark:text-blue-300">
-                  Additional settings like notifications, business preferences, and appearance options will be available in future updates.
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  New to Shift? Replay the tutorial to get a quick overview of all the features.
                 </p>
+                <button
+                  onClick={() => setShowTutorial(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Replay Tutorial
+                </button>
+              </div>
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Feature Guide
+                </h3>
+                <AccordionFAQ items={faqItems} />
               </div>
             </div>
           </div>
