@@ -13,6 +13,7 @@
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.42.0",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.45.7",
     "@upstash/ratelimit": "^2.0.7",
