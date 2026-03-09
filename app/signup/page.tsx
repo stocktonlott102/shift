@@ -264,6 +264,17 @@ export default function SignUpPage() {
             ← Back to Home
           </Link>
         </div>
+
+        {/* Legal Links */}
+        <div className="text-center mt-4 flex items-center justify-center gap-3">
+          <Link href="/privacy-policy" className="text-xs text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+            Privacy Policy
+          </Link>
+          <span className="text-gray-300 dark:text-gray-600">·</span>
+          <Link href="/terms" className="text-xs text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+            Terms of Service
+          </Link>
+        </div>
       </div>
     </div>
   );

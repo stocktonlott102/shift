@@ -3,6 +3,7 @@
 import { User } from '@supabase/supabase-js';
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 import LogoutButton from '@/components/LogoutButton';
 import TutorialModal from '@/components/TutorialModal';
@@ -289,6 +290,23 @@ export default function SettingsClient({ user }: SettingsClientProps) {
                 <AccordionFAQ items={faqItems} />
               </div>
             </div>
+          </div>
+
+          {/* Legal Links */}
+          <div className="flex items-center justify-center gap-4 pb-4">
+            <Link
+              href="/privacy-policy"
+              className="text-xs text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+            >
+              Privacy Policy
+            </Link>
+            <span className="text-gray-300 dark:text-gray-600">·</span>
+            <Link
+              href="/terms"
+              className="text-xs text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+            >
+              Terms of Service
+            </Link>
           </div>
         </div>
       </div>

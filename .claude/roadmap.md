@@ -28,8 +28,8 @@ HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Poli
 ### 2. Sentry Error Monitoring
 Zero visibility into production errors right now. Free tier, ~1 hour to set up with Next.js. Need this before real users are on the app.
 
-### 3. Privacy Policy & Terms of Service Pages
-Required for App Store submission. Required legally to collect user data. Can be simple boilerplate but must exist and be linked from the app.
+### ~~3. Privacy Policy & Terms of Service Pages~~ ✅ Done
+Pages at `/privacy-policy` and `/terms`. Linked from Settings footer and signup page.
 
 ---
 
