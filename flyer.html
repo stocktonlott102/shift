@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Service Project Flyer</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: #f0f4f8;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .flyer {
+      background: white;
+      border-radius: 24px;
+      width: 420px;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+    }
+
+    .header {
+      background: linear-gradient(135deg, #2e7d32, #66bb6a);
+      color: white;
+      padding: 36px 28px 28px;
+      text-align: center;
+    }
+
+    .quorum {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      opacity: 0.85;
+      margin-bottom: 12px;
+    }
+
+    .title {
+      font-size: 34px;
+      font-weight: 900;
+      line-height: 1.1;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      font-size: 15px;
+      opacity: 0.9;
+    }
+
+    .body {
+      padding: 28px;
+    }
+
+    .info-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .icon {
+      font-size: 26px;
+      min-width: 36px;
+      text-align: center;
+      margin-top: 2px;
+    }
+
+    .info-label {
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #2e7d32;
+      margin-bottom: 3px;
+    }
+
+    .info-value {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1a1a1a;
+      line-height: 1.4;
+    }
+
+    .info-note {
+      font-size: 13px;
+      color: #666;
+      margin-top: 3px;
+    }
+
+    .divider {
+      border: none;
+      border-top: 2px dashed #e0e0e0;
+      margin: 8px 0 20px;
+    }
+
+    .project-box {
+      background: #f1f8f1;
+      border-left: 4px solid #2e7d32;
+      border-radius: 0 12px 12px 0;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+
+    .project-box .info-label {
+      margin-bottom: 6px;
+    }
+
+    .project-box p {
+      font-size: 15px;
+      color: #333;
+      line-height: 1.5;
+    }
+
+    .bring-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .donut-banner {
+      background: linear-gradient(135deg, #ff8f00, #ffca28);
+      border-radius: 14px;
+      padding: 16px 20px;
+      text-align: center;
+      color: white;
+    }
+
+    .donut-banner .big {
+      font-size: 22px;
+      font-weight: 900;
+      line-height: 1.2;
+    }
+
+    .donut-banner .small {
+      font-size: 14px;
+      margin-top: 4px;
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+  <div class="flyer">
+    <div class="header">
+      <div class="quorum">9th Ward Elders Quorum</div>
+      <div class="title">Service Project</div>
+      <div class="subtitle">Come help out a great cause!</div>
+    </div>
+
+    <div class="body">
+      <div class="info-row">
+        <div class="icon">📅</div>
+        <div>
+          <div class="info-label">Date & Time</div>
+          <div class="info-value" style="white-space: nowrap;">Saturday, April 11th | 9:00 AM – 11:00 AM</div>
+        </div>
+      </div>
+
+      <div class="info-row">
+        <div class="icon">📍</div>
+        <div>
+          <div class="info-label">Location</div>
+          <div class="info-value">940 E 150 S St<br>Springville, UT 84663</div>
+          <div class="info-note">Drive past the house and continue down the road — guest parking lot will be on your left</div>
+        </div>
+      </div>
+
+      <hr class="divider"/>
+
+      <div class="project-box">
+        <div class="info-label">What we're doing</div>
+        <p>Clearing rocks, sticks, and weeds and laying down weed barrier so trees can be planted — helping out an elderly HOA community!</p>
+      </div>
+
+      <div class="info-row">
+        <div class="icon">🎒</div>
+        <div>
+          <div class="info-label">What to bring</div>
+          <div class="info-value">Just yourself!</div>
+          <div class="info-note">Gloves welcome if you've got 'em</div>
+        </div>
+      </div>
+
+      <div class="donut-banner">
+        <div class="big">🍩 Donuts will be there.</div>
+        <div class="small">Will you?</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
