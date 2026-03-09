@@ -49,7 +49,7 @@ const nextConfig: NextConfig = {
 };
 
 export default withSentryConfig(nextConfig, {
-  org: "shift-app",
+  org: "shift-lo",
   project: "javascript-nextjs",
   silent: !process.env.CI,
   widenClientFileUpload: true,
