@@ -2,12 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 export default function Navigation() {
   const pathname = usePathname();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
+  const settingsDropdownRef = useRef<HTMLDivElement>(null);
 
   // Detect screen size on mount and resize
   useEffect(() => {
@@ -23,6 +25,17 @@ export default function Navigation() {
 
     // Cleanup
     return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Close settings dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (settingsDropdownRef.current && !settingsDropdownRef.current.contains(e.target as Node)) {
+        setShowSettingsDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   // Don't render anything until we know the screen size (prevents hydration mismatch)
@@ -131,18 +144,20 @@ export default function Navigation() {
                 ))}
             </div>
 
-            {/* Settings Button */}
-            <div className="flex justify-end">
-              <Link
-                href="/settings"
+            {/* Settings Dropdown */}
+            <div className="flex justify-end relative" ref={settingsDropdownRef}>
+              <button
+                onClick={() => setShowSettingsDropdown((prev) => !prev)}
                 className={`p-2 rounded-full transition-all duration-200 ${
-                  isActive('/settings')
+                  isActive('/settings') || showSettingsDropdown
                     ? 'text-primary-600 dark:text-primary-400'
                     : 'text-neutral-600 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 hover:scale-110'
                 }`}
                 title="Settings"
+                aria-expanded={showSettingsDropdown}
+                aria-haspopup="true"
               >
-                <svg className="w-6 h-6 transition-transform duration-200 hover:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className={`w-6 h-6 transition-transform duration-200 ${showSettingsDropdown ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -156,7 +171,26 @@ export default function Navigation() {
                     d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
                   />
                 </svg>
-              </Link>
+              </button>
+
+              {showSettingsDropdown && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg py-1 z-50">
+                  <Link
+                    href="/settings"
+                    className="block px-4 py-2.5 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+                    onClick={() => setShowSettingsDropdown(false)}
+                  >
+                    Settings
+                  </Link>
+                  <Link
+                    href="/help-feedback"
+                    className="block px-4 py-2.5 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+                    onClick={() => setShowSettingsDropdown(false)}
+                  >
+                    Help & Feedback
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         </div>
